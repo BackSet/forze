@@ -3,107 +3,86 @@
 ## Identidad
 
 - Proyecto: FORZE.
-- Repositorio: BackSet/forze (`https://github.com/BackSet/forze.git`) [verificado en Git].
-- Rama canonica de trabajo: `dev` [verificado en Git].
-- Fecha de contexto: 2026-06-16.
-- Tipo de producto: aplicacion profesional para presupuestacion de construccion [verificado en `PRODUCT.md`].
-- Principio de producto: hacer que presupuestos complejos sean controlables, verificables y rapidos de construir [verificado en `PRODUCT.md`].
+- Repositorio: BackSet/forze.
+- Rama canonica: `dev`.
+- Fecha: 2026-06-16.
+- Producto: herramienta profesional para presupuestacion de construccion.
+- Timezone canonica: `America/Guayaquil`.
 
 ## Estructura
 
-- `backend/`: backend Java 26 con Spring Boot 4.1.0 y Maven Wrapper.
-- `frontend/`: frontend React/TypeScript/Vite.
-- `compose.yaml`: PostgreSQL local para desarrollo.
-- `docs/ai/`: contexto tecnico canonico para agentes.
-- `PRODUCT.md`: contexto de producto y direccion visual.
-
-## Stack Confirmado
-
-### Backend
-
-- Java 26 [verificado con `java -version` y `backend/pom.xml`].
-- Maven Wrapper con Apache Maven 3.9.16 [verificado con `./mvnw --version`].
-- Spring Boot 4.1.0 [verificado en `backend/pom.xml`].
-- Paquete base: `com.backset.forze`.
-- Spring Web MVC, Validation, Security, Actuator, Data JPA y Flyway.
-- PostgreSQL driver y `flyway-database-postgresql`.
-- Spring Modulith 2.1.0 para verificacion de arquitectura.
-- MapStruct 1.6.3 preparado para mapeos futuros.
-- springdoc OpenAPI 3.0.3, endpoint `/v3/api-docs`.
-- Testcontainers 1.21.4 para pruebas PostgreSQL cuando Docker este disponible.
-
-### Frontend
-
-- Node.js 24.16.0 y npm 11.13.0 [verificado localmente].
-- React 19, TypeScript 5.9, Vite 8.
-- TanStack Router, TanStack Query, TanStack Table y TanStack Virtual.
-- Tailwind CSS 4, shadcn/ui pattern, Radix Slot, lucide-react.
-- React Hook Form, Zod, Zustand, Decimal.js.
-- openapi-typescript, openapi-fetch y openapi-react-query.
-- Vitest, Testing Library y Playwright.
+- `backend/`: Java 26, Spring Boot 4.1.0, Maven Wrapper.
+- `frontend/`: React 19, TypeScript 5.9, Vite 8.
+- `docker-compose.yml`: PostgreSQL y collector OTLP opcional.
+- `.env.example`: variables locales sin secretos reales.
+- `docs/ai/`: contexto canonico para agentes.
 
 ## Backend
 
-- Clase de arranque: `backend/src/main/java/com/backset/forze/ForzeApplication.java`.
-- Seguridad global: CSRF deshabilitado para API stateless inicial, CORS configurable, endpoints tecnicos permitidos y todo lo demas denegado por defecto.
-- Endpoints permitidos sin autenticacion:
-  - `GET /actuator/health`
-  - `GET /actuator/info`
-  - `GET /v3/api-docs`
-  - `GET /v3/api-docs/**`
-- No hay endpoints, entidades, servicios, repositorios, migraciones o reglas de dominio implementadas todavia.
-- JPA usa `hibernate.ddl-auto=validate`; Flyway esta habilitado.
-- Errores de validacion usan `ProblemDetail` mediante `ApiExceptionHandler`.
+- Paquete base: `com.backset.forze`.
+- Modulos tecnicos bajo `com.backset.forze.module`:
+  - `identity`: login, JWT access token, refresh token rotativo, logout, `/me`.
+  - `document`: render HTML/PDF tecnico con Thymeleaf y OpenHTMLtoPDF.
+- `configuration`: propiedades, seguridad, OpenAPI, CORS, Clock.
+- `shared.api`: `ProblemDetail` y excepciones API.
+- Persistencia: PostgreSQL + Flyway; Hibernate `ddl-auto=validate`.
+- Migracion actual: `V1__identity_auth.sql`.
+- Observabilidad: Actuator health/info, Micrometer Tracing, OTLP configurable, `traceId`/`spanId` en logs.
+- OpenAPI: springdoc en `/v3/api-docs`.
+
+## Autenticacion
+
+- Endpoints:
+  - `POST /api/auth/login`
+  - `POST /api/auth/refresh`
+  - `POST /api/auth/logout`
+  - `GET /api/auth/me`
+- Access token: JWT corto con issuer, subject, jti, issued-at, expiration y claim minimo `username`.
+- Refresh token: aleatorio, guardado solo como hash SHA-256, con familia/sesion, expiracion, revocacion y rotacion.
+- Refresh cookie: HttpOnly, path `/api/auth`, SameSite configurable, Secure en prod.
+- CSRF: habilitado con cookie token repository; `/api/auth/**` queda ignorado explicitamente porque el flujo es stateless y usa SameSite/HttpOnly refresh cookie.
+- Bootstrap admin: solo perfil `dev`, idempotente, password obligatorio por entorno.
 
 ## Frontend
 
-- Entrada: `frontend/src/main.tsx`.
-- Router: `frontend/src/router.ts` y rutas en `frontend/src/routes/`.
-- Pantalla inicial: `frontend/src/components/home-page.tsx`.
-- Providers globales: `frontend/src/components/providers.tsx`.
-- Cliente API tipado: `frontend/src/lib/api/client.ts`.
-- Tipos OpenAPI generados: `frontend/src/lib/api/generated/schema.d.ts`.
-- La UI inicial es una pantalla tecnica de base de trabajo, sin KPIs, datos de muestra ni modulos de dominio inventados.
-
-## Configuracion Local
-
-- Base de datos local esperada: PostgreSQL via `compose.yaml`.
-- Variables backend:
-  - `FORZE_DB_URL` (`jdbc:postgresql://localhost:5432/forze` por defecto).
-  - `FORZE_DB_USERNAME` (`forze` por defecto).
-  - `FORZE_DB_PASSWORD` (`forze` por defecto).
-  - `FORZE_BACKEND_PORT` (`8080` por defecto).
-  - `FORZE_FRONTEND_ORIGIN` (`http://localhost:5173` por defecto).
+- Rutas:
+  - `/`: identidad FORZE y acceso a login, sin KPIs ni datos ficticios.
+  - `/login`: React Hook Form + Zod, loading, errores y accesibilidad basica.
+  - `/app`: ruta protegida que consulta `/api/auth/me`, muestra sesion tecnica y logout.
+- API:
+  - `openapi-fetch` con credentials.
+  - `openapi-react-query` disponible como cliente principal para estado remoto.
+  - Middleware de Authorization.
+  - Timeout por request.
+  - Refresh automatico single-flight.
+  - Reintento maximo una vez tras 401 en `/me`.
+  - Zustand guarda access token, usuario, estado de refresh y preferencias; no guarda refresh token.
 
 ## Comandos
 
-- Backend test: `cd backend && ./mvnw test`.
-- Backend verify/build: `cd backend && ./mvnw verify`.
-- Backend dev: `cd backend && ./mvnw spring-boot:run -Dspring-boot.run.profiles=local`.
-- PostgreSQL local: `docker compose up -d postgres`.
-- Frontend install: `cd frontend && npm install`.
-- Frontend dev: `cd frontend && npm run dev`.
-- Frontend typecheck: `cd frontend && npm run typecheck`.
-- Frontend unit tests: `cd frontend && npm run test`.
-- Frontend lint: `cd frontend && npm run lint`.
-- Frontend build: `cd frontend && npm run build`.
-- Frontend E2E: `cd frontend && npm run e2e`.
-- Generar tipos OpenAPI: `cd frontend && npm run openapi:generate` con backend activo.
+- `docker compose up -d`
+- `docker compose ps`
+- `cd backend && ./mvnw test`
+- `cd backend && ./mvnw verify`
+- `cd backend && ./mvnw spring-boot:run`
+- `cd frontend && npm ci`
+- `cd frontend && npm run api:generate`
+- `cd frontend && npm run typecheck`
+- `cd frontend && npm run lint`
+- `cd frontend && npm run test`
+- `cd frontend && npm run build`
+- `cd frontend && npm run test:e2e`
 
-## Validaciones Recientes
+## Validacion Reciente
 
-- `backend/./mvnw verify`: exitoso, 6 tests, 1 omitido porque Docker no esta disponible.
-- `frontend/npm run typecheck`: exitoso.
-- `frontend/npm run test`: exitoso, 2 tests.
-- `frontend/npm run lint`: exitoso.
-- `frontend/npm run build`: exitoso.
-- `frontend/npm run e2e`: exitoso luego de instalar Chromium de Playwright.
-- `docker compose up -d postgres`: no ejecutable en este entorno porque `docker` no existe en PATH.
+- Backend tests: 11 ejecutados, 1 omitido por Docker ausente.
+- Frontend typecheck, lint, tests, build y E2E: exitosos.
+- Docker/Compose: no disponible en el entorno actual (`docker: command not found`).
 
-## Reglas Para Futuros Agentes
+## Restricciones
 
-- No inventar modulos, endpoints, tablas, roles, estados, datos demo ni reglas de negocio.
-- El backend es la fuente de verdad del contrato OpenAPI.
-- Los tipos generados bajo `frontend/src/lib/api/generated/` no se editan manualmente.
-- Mantener `docs/ai/` como contexto canonico verificable, no como changelog.
-- No hacer commit ni push salvo instruccion explicita del usuario.
+- No copiar dominio, migraciones ni permisos de ECUBOX.
+- No usar Axios, Ky, Redux, React Router, WebFlux, R2DBC, MongoDB, H2 ni Lombok.
+- No inventar modulos funcionales de presupuestacion hasta que exista tarea concreta.
+- No versionar secretos reales.
+- No hacer commit ni push salvo instruccion explicita.

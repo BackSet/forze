@@ -1,62 +1,65 @@
 # MODULE_MAP
 
-## Alcance
+## Backend
 
-- Proyecto: FORZE.
-- Rama: `dev`.
-- Estado: monorepo inicial con cimientos tecnicos. No hay modulos funcionales de dominio implementados.
+### `configuration`
 
-## Modulos Tecnicos
+- Propiedades: `AppProperties`, `BootstrapProperties`, `CorsProperties`, `JwtProperties`, `SecurityProperties`.
+- Seguridad: `SecurityConfiguration`.
+- OpenAPI: `OpenApiConfiguration`.
+- Tiempo: `TimeConfiguration`.
 
-### Backend Application
+### `module.identity`
 
-- Entrada: `backend/src/main/java/com/backset/forze/ForzeApplication.java`.
-- Proposito: arrancar la aplicacion Spring Boot y escanear propiedades.
-- Tests: `ForzeApplicationTests`, `ModulithArchitectureTests`, `PostgresContainerTests`.
+- API: `AuthController`, `LoginRequest`, `AuthTokenResponse`, `MeResponse`.
+- Application: `AuthService`, `AdminBootstrapper`, `AuthTokens`, `AuthenticatedUser`.
+- Domain: `UserAccount`, `RefreshToken`.
+- Infrastructure: repositories JPA, `JwtService`, `JwtAuthenticationFilter`, `RefreshTokenGenerator`, `TokenHashing`, `UserPrincipal`.
+- Persistencia:
+  - `identity_users`
+  - `identity_refresh_tokens`
+- Flujos:
+  - login valida credenciales sin revelar existencia de usuario;
+  - refresh rota token y revoca el anterior;
+  - reuse detection marca familia;
+  - logout revoca refresh actual;
+  - `/me` requiere access token.
 
-### Backend Config
+### `module.document`
 
-- Paquete: `com.backset.forze.config`.
-- `CorsProperties`: origenes permitidos para CORS.
-- `SecurityConfig`: permite health/info/OpenAPI y deniega todo lo demas.
-- `OpenApiConfig`: metadatos del contrato OpenAPI.
+- Application: `DocumentRenderer`, `TechnicalSmokeDocument`.
+- Domain: `DocumentRenderException`.
+- Infrastructure: `ThymeleafPdfDocumentRenderer`.
+- Template: `templates/technical-smoke.html`.
+- No hay endpoint de negocio PDF.
 
-### Backend Web
+### `shared.api`
 
-- Paquete: `com.backset.forze.web`.
-- `ApiExceptionHandler`: manejo global de errores de validacion con `ProblemDetail`.
-- Endpoints de dominio: ninguno confirmado.
+- `ApiException`.
+- `ApiExceptionHandler` con `ProblemDetail`.
 
-### Frontend App Shell
+## Frontend
 
-- Entrada: `frontend/src/main.tsx`.
-- Providers: `frontend/src/components/providers.tsx`.
-- Router: `frontend/src/router.ts`, `frontend/src/routes/__root.tsx`, `frontend/src/routes/index.tsx`.
-- Pantalla inicial: `frontend/src/components/home-page.tsx`.
+### App Shell
 
-### Frontend API Client
+- `src/main.tsx`, `components/providers.tsx`, `router.ts`, `routes/__root.tsx`.
 
-- Cliente: `frontend/src/lib/api/client.ts`.
-- Contrato generado: `frontend/src/lib/api/generated/schema.d.ts`.
-- Fuente de verdad: backend `/v3/api-docs`.
+### Rutas
 
-### Frontend UI Foundation
+- `/`: `components/home-page.tsx`.
+- `/login`: `features/auth/login-page.tsx`.
+- `/app`: `app/app-page.tsx`.
 
-- Estilos globales y tokens: `frontend/src/index.css`.
-- Utilidades: `frontend/src/lib/utils.ts`.
-- Componentes confirmados:
-  - `components/ui/button.tsx`
-  - `components/theme-toggle.tsx`
-  - `components/home-page.tsx`
+### Auth/API
 
-## Flujos Confirmados
+- `lib/api/client.ts`: openapi-fetch + openapi-react-query.
+- `lib/api/errors.ts`: normalizacion de errores.
+- `lib/auth/auth-api.ts`: login, refresh single-flight, `/me`, logout.
+- `lib/auth/session-store.ts`: Zustand session/preferencias.
+- `lib/api/generated/schema.d.ts`: contrato TS de OpenAPI.
 
-- Health backend: `GET /actuator/health` responde `UP`.
-- OpenAPI backend: `GET /v3/api-docs` responde contrato OpenAPI 3.1.0 sin paths de dominio.
-- Generacion de tipos: `npm run openapi:generate` crea `schema.d.ts` desde el backend activo.
-- Frontend inicial: ruta `/` muestra los cimientos tecnicos de FORZE.
+## Tests
 
-## Modulos De Dominio Pendientes
-
-- Proyectos, clientes, presupuestos, capitulos, rubros, APU, insumos, proveedores, costos historicos, versiones, aprobaciones, exportaciones y ejecucion son conceptos de producto confirmados en `PRODUCT.md`, pero no tienen implementacion en codigo.
-- No hay entidades JPA, tablas, migraciones, controllers, services, repositories, permisos o rutas frontend de dominio.
+- Backend: seguridad, contexto, Modulith, Testcontainers PostgreSQL, document renderer, JWT, token hashing, AuthService.
+- Frontend: home, router, login validation, auth store, refresh single-flight.
+- Playwright: home, login, `/app`, reload/refresh y logout con red mockeada.

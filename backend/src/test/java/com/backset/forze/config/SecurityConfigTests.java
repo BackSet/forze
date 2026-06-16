@@ -14,6 +14,7 @@ import org.springframework.test.web.servlet.MockMvc;
 		classes = ForzeApplication.class,
 		properties = {
 				"debug=false",
+				"forze.identity.enabled=false",
 				"spring.autoconfigure.exclude=org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration,org.springframework.boot.hibernate.autoconfigure.HibernateJpaAutoConfiguration,org.springframework.boot.flyway.autoconfigure.FlywayAutoConfiguration"
 		})
 @AutoConfigureMockMvc

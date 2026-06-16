@@ -1,53 +1,53 @@
 # PROJECT_INSTRUCTIONS
 
-## Identidad Fija
+## Identidad
 
 - Proyecto: FORZE.
 - Repositorio: BackSet/forze.
 - Rama base: `dev`.
 - Entorno principal: local.
-- Ruta de contexto: `docs/ai`.
+- Contexto IA: `docs/ai`.
 
-## Rol Del Agente
+## Reglas
 
-- Implementar solo el alcance solicitado.
-- Verificar el estado real de la rama antes de afirmar arquitectura, comandos o convenciones.
-- Mantener cambios pequenos, revisables y alineados con el stack existente.
-- Actualizar `docs/ai/` cuando cambien estructura, stack, comandos, modulos, seguridad, datos o convenciones.
-- No hacer commit ni push salvo instruccion explicita del usuario.
+- Trabajar sobre `dev` salvo instruccion explicita.
+- No hacer commit ni push salvo instruccion explicita.
+- No sobrescribir cambios locales ajenos.
+- No copiar dominio, migraciones, permisos ni entidades de ECUBOX.
+- Mantener `backend/` y `frontend/` como raices.
+- Mantener timezone `America/Guayaquil`.
+- No usar Axios, Ky, Redux, React Router, Lombok, WebFlux, R2DBC, H2 o MongoDB.
+- No versionar secretos reales.
 
-## Fuentes De Verdad
+## Arquitectura
 
-1. Codigo y configuracion de la rama activa.
-2. Tests automatizados y contratos generados.
-3. `PRODUCT.md` para direccion de producto.
-4. `README.md` para uso local.
-5. `docs/ai/` para contexto tecnico sintetico.
-
-## Reglas Permanentes
-
-- No inventar dominio: sin endpoints, tablas, datos seed, roles, estados o pantallas funcionales sin tarea concreta.
-- Mantener el backend como fuente de verdad de OpenAPI.
-- Regenerar tipos frontend con `npm run openapi:generate`; no editar `schema.d.ts` manualmente.
-- Regenerar rutas con `npm run routes:generate`; no editar `routeTree.gen.ts` manualmente.
-- Mantener `hibernate.ddl-auto=validate`; no usar schema generation como sustituto de migraciones.
-- No crear migraciones sin historia funcional clara.
-- Mantener seguridad deny-by-default hasta que exista autenticacion y autorizacion reales.
-- Si Docker no esta disponible, documentar que los tests Testcontainers se omiten por entorno.
+- Backend modular bajo `com.backset.forze.module`.
+- Submodulos actuales: `identity` y `document`.
+- Cada modulo mantiene `api`, `application`, `domain`, `infrastructure` cuando aplica.
+- No crear carpetas globales de controllers/services/repositories.
+- Flyway es propietario del esquema; Hibernate solo valida.
+- Access JWT + refresh cookie HttpOnly.
+- Refresh tokens siempre hasheados.
+- Actuator solo health/info.
+- OpenAPI desde backend.
+- Frontend usa TanStack Router, TanStack Query, openapi-fetch/openapi-react-query, Zustand solo para sesion/preferencias.
 
 ## Validacion Esperada
 
-- Backend: `cd backend && ./mvnw verify`.
-- Frontend: `cd frontend && npm run typecheck && npm run test && npm run lint && npm run build`.
-- E2E: `cd frontend && npm run e2e`.
-- OpenAPI: levantar backend y ejecutar `cd frontend && npm run openapi:generate`.
+- `cd backend && ./mvnw verify`
+- `cd frontend && npm ci`
+- `cd frontend && npm run routes:generate`
+- `cd frontend && npm run typecheck`
+- `cd frontend && npm run lint`
+- `cd frontend && npm run test`
+- `cd frontend && npm run build`
+- `cd frontend && npm run test:e2e`
 
-## Reporte Final
+## Mantenimiento
 
-Todo reporte de implementacion debe incluir:
+Actualizar estos archivos cuando cambien stack, rutas, endpoints, persistencia, seguridad, comandos o estructura:
 
-- Rama y repositorio verificados.
-- Cambios principales.
-- Comandos ejecutados y resultado.
-- Validaciones no ejecutadas o limitadas por entorno.
-- Estado final de Git.
+- `docs/ai/PROJECT_CONTEXT.md`
+- `docs/ai/MODULE_MAP.md`
+- `docs/ai/NAMING.md`
+- `docs/ai/PROJECT_INSTRUCTIONS.md`

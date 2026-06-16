@@ -1,35 +1,53 @@
 # FORZE
 
-FORZE is a monorepo for a professional construction budgeting product. It contains a Spring Boot backend and a React/TypeScript frontend prepared for future functional modules without adding demo domain data.
+FORZE is a professional construction budgeting monorepo. It contains a Java 26 / Spring Boot backend and a React / TypeScript / Vite frontend with authentication infrastructure, OpenAPI-driven client types, PostgreSQL/Flyway persistence, observability hooks, and a technical PDF renderer.
+
+No construction-budget domain modules are implemented yet.
 
 ## Requirements
 
 - Java 26
-- Node.js 24 or compatible current LTS
+- Node.js 24
 - npm 11
-- Docker with Compose for local PostgreSQL
-
-Spring Boot 4.1.0 is used because its official system requirements state compatibility up to Java 26.
+- Docker with Compose for PostgreSQL and optional OpenTelemetry collector
 
 ## Structure
 
-- `backend/`: Java 26, Spring Boot, Maven Wrapper.
-- `frontend/`: React, TypeScript, Vite, TanStack Router, TanStack Query and Tailwind CSS.
-- `docs/ai/`: canonical technical context for future agents.
-- `compose.yaml`: local PostgreSQL service.
+- `backend/`: Spring Boot backend.
+- `frontend/`: React/Vite frontend.
+- `docs/ai/`: canonical implementation context for agents.
+- `docker-compose.yml`: PostgreSQL and optional OTLP collector.
+- `.env.example`: local environment template.
 
-## Local Database
+## Environment
 
-```bash
-docker compose up -d postgres
+Copy `.env.example` to `.env` and set local secrets. Do not commit real values.
+
+Required sensitive values do not have safe fallbacks:
+
+- `DB_PASSWORD`
+- `FLYWAY_PASSWORD`
+- `JWT_SECRET`
+- `ADMIN_INITIAL_PASSWORD` when admin bootstrap is enabled
+
+Canonical timezone:
+
+```text
+America/Guayaquil
 ```
 
-The service uses configurable variables with safe local defaults:
+## Local Services
 
-- `FORZE_DB_NAME`
-- `FORZE_DB_USERNAME`
-- `FORZE_DB_PASSWORD`
-- `FORZE_DB_PORT`
+```bash
+docker compose up -d
+docker compose ps
+```
+
+Optional OTLP collector:
+
+```bash
+docker compose --profile observability up -d
+```
 
 ## Backend
 
@@ -37,53 +55,82 @@ The service uses configurable variables with safe local defaults:
 cd backend
 ./mvnw test
 ./mvnw verify
-./mvnw spring-boot:run -Dspring-boot.run.profiles=local
+./mvnw spring-boot:run
 ```
 
-Default backend configuration:
+Implemented technical endpoints:
 
-- `FORZE_DB_URL=jdbc:postgresql://localhost:5432/forze`
-- `FORZE_DB_USERNAME=forze`
-- `FORZE_DB_PASSWORD=forze`
-- `FORZE_BACKEND_PORT=8080`
-- `FORZE_FRONTEND_ORIGIN=http://localhost:5173`
-
-Technical endpoints intentionally exposed without authentication:
-
+- `POST /api/auth/login`
+- `POST /api/auth/refresh`
+- `POST /api/auth/logout`
+- `GET /api/auth/me`
 - `GET /actuator/health`
 - `GET /actuator/info`
 - `GET /v3/api-docs`
 
-All other backend requests are denied by default until real authentication and domain endpoints are implemented.
+Security notes:
+
+- Access tokens are JWT bearer tokens.
+- Refresh tokens are random, stored only as SHA-256 hashes, rotated on refresh, revocable, and sent through an HttpOnly cookie.
+- CSRF is enabled with a cookie token repository and explicitly ignored for the stateless auth API.
+- CORS allows credentials and is configured by `CORS_ALLOWED_ORIGINS`.
+- Admin bootstrap is dev-only and idempotent.
 
 ## Frontend
 
 ```bash
 cd frontend
-npm install
-npm run dev
+npm ci
+npm run api:generate
 npm run typecheck
+npm run lint
 npm run test
 npm run build
-npm run e2e
+npm run test:e2e
 ```
 
-## OpenAPI Flow
+Routes:
 
-The backend is the source of truth for the OpenAPI contract. Start PostgreSQL and the backend before generating frontend types:
+- `/`: FORZE identity and login access.
+- `/login`: React Hook Form + Zod login flow.
+- `/app`: protected session surface using `/api/auth/me`.
 
-```bash
-docker compose up -d postgres
-cd backend
-./mvnw spring-boot:run -Dspring-boot.run.profiles=local
-```
+The frontend uses `openapi-fetch` and `openapi-react-query` as the API client foundation. Refresh tokens are never stored in localStorage.
 
-In another terminal:
+## OpenAPI
+
+The backend is the source of truth:
 
 ```bash
 cd frontend
-npm run openapi:generate
-npm run openapi:check
+npm run api:generate
 ```
 
-Generated OpenAPI types live under `frontend/src/lib/api/generated/` and must not be edited manually.
+Generated types live in `frontend/src/lib/api/generated/schema.d.ts` and should be regenerated from `/v3/api-docs` when the backend is running with PostgreSQL available.
+
+## Direct Dependencies
+
+Backend responsibilities:
+
+- Spring Boot starters: Web MVC, Security, Validation, Data JPA, Flyway, Actuator, Thymeleaf.
+- PostgreSQL driver and Flyway PostgreSQL support: persistence and migrations.
+- JJWT: access JWT issuing and validation.
+- Spring Modulith: modular boundary verification.
+- springdoc-openapi: OpenAPI generation.
+- Micrometer Tracing + OpenTelemetry OTLP exporter: trace propagation/export.
+- OpenHTMLtoPDF: technical PDF smoke rendering.
+- MapStruct: mapper support for future modules.
+- Testcontainers PostgreSQL: integration tests without H2 when Docker is available.
+
+Frontend responsibilities:
+
+- React, TypeScript, Vite: application runtime and build.
+- TanStack Router, Query, Table, Virtual: routing, remote state, future dense tables/virtualization.
+- React Hook Form, Zod, `@hookform/resolvers`: login form validation.
+- Zustand: local session/preferences only.
+- Tailwind CSS, shadcn/ui pattern, Radix Slot, class-variance-authority, clsx, tailwind-merge, lucide-react: UI foundation.
+- openapi-typescript, openapi-fetch, openapi-react-query: contract-driven API client.
+- Sonner and cmdk: notifications and future command palette.
+- Decimal.js: future financial calculations.
+- Vitest, Testing Library, user-event, jsdom, coverage-v8, Playwright: unit/component/E2E tests.
+- ESLint and Prettier: static quality and formatting.

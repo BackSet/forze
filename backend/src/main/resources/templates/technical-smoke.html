@@ -1,0 +1,38 @@
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8" />
+  <title>FORZE technical smoke</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 24mm;
+    }
+
+    body {
+      color: #1f1f1f;
+      font-family: Arial, sans-serif;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    h1 {
+      border-bottom: 1px solid #b9b9b9;
+      font-size: 22px;
+      margin: 0 0 18px;
+      padding-bottom: 8px;
+    }
+
+    .label {
+      color: #6b2b22;
+      font-weight: 700;
+      margin-top: 16px;
+    }
+  </style>
+</head>
+<body>
+  <h1 th:text="${document.title}">FORZE technical smoke</h1>
+  <p th:text="${document.description}">Document renderer verification.</p>
+  <p class="label">Generated at</p>
+  <p th:text="${document.generatedAt}">2026-06-16T00:00:00Z</p>
+</body>
+</html>

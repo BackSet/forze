@@ -1,4 +1,4 @@
-package com.backset.forze.config;
+package com.backset.forze.configuration;
 
 import java.util.List;
 

@@ -7,50 +7,39 @@
 | Producto | FORZE |
 | Repositorio | BackSet/forze |
 | Rama base | `dev` |
-| Backend Maven group | `com.backset.forze` |
-| Backend artifact | `backend` |
-| Paquete base backend | `com.backset.forze` |
-| Clase de arranque | `ForzeApplication` |
-| Aplicacion Spring | `forze-backend` |
-| Frontend package | `frontend` |
-| Base de datos local | `forze` |
+| Paquete base | `com.backset.forze` |
+| Backend app | `forze-backend` |
+| Timezone | `America/Guayaquil` |
+| DB local | `forze` |
+| Access token | `access token` |
+| Refresh token | `refresh token` |
+| Cookie refresh | `forze_refresh` |
 
-## Convenciones Tecnicas
+## Endpoints
 
-- Java packages: lowercase con puntos, bajo `com.backset.forze`.
-- Clases Java: PascalCase.
-- Tests Java: sufijo `Tests`.
-- Propiedades Spring: kebab/dot notation.
-- Rutas frontend: TanStack Router file-based routes bajo `frontend/src/routes`.
-- Componentes React: PascalCase.
-- Helpers TypeScript: camelCase.
-- Variables de entorno FORZE: prefijo `FORZE_`.
+- `POST /api/auth/login`
+- `POST /api/auth/refresh`
+- `POST /api/auth/logout`
+- `GET /api/auth/me`
+- `GET /actuator/health`
+- `GET /actuator/info`
+- `GET /v3/api-docs`
 
-## Terminos De Producto Confirmados
+## Entidades Tecnicas
 
-- Presupuesto de obra.
-- Proyecto.
-- Cliente.
-- Ubicacion.
-- Capitulo.
-- Rubro.
-- APU.
-- Cantidad.
-- Rendimiento.
-- Materiales.
-- Mano de obra.
-- Equipos.
-- Costos directos.
-- Costos indirectos.
-- Proveedor.
-- Version aprobada.
-- Cotizacion final.
-- Trazabilidad.
+- `UserAccount` -> tabla `identity_users`.
+- `RefreshToken` -> tabla `identity_refresh_tokens`.
+- `TechnicalSmokeDocument` -> DTO tecnico sin persistencia.
 
-Estos terminos estan confirmados como direccion de producto en `PRODUCT.md`, pero aun no deben convertirse en tablas, endpoints, entidades o rutas hasta que exista una tarea funcional especifica.
+## Variables
+
+- Backend: `SPRING_PROFILES_ACTIVE`, `APP_TIME_ZONE`, `SERVER_PORT`, `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `FLYWAY_URL`, `FLYWAY_USER`, `FLYWAY_PASSWORD`, `JWT_ISSUER`, `JWT_SECRET`, `JWT_ACCESS_EXPIRATION`, `JWT_REFRESH_EXPIRATION`, `ADMIN_BOOTSTRAP_ENABLED`, `ADMIN_USERNAME`, `ADMIN_EMAIL`, `ADMIN_INITIAL_PASSWORD`, `CORS_ALLOWED_ORIGINS`, `OPENAPI_ENABLED`, `ACTUATOR_HEALTH_SHOW_DETAILS`, `TRACING_ENABLED`, `TRACING_SAMPLING_PROBABILITY`, `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_SERVICE_NAME`.
+- Frontend: `VITE_APP_NAME`, `VITE_APP_ENV`, `VITE_API_BASE_URL`, `VITE_REQUEST_TIMEOUT_MS`.
 
 ## Evitar
 
-- No usar el paquete historico `com.forze.backend`; fue reemplazado por `com.backset.forze`.
-- No introducir usuarios, roles, permisos, estados, codigos de error o entidades sin respaldo en una tarea funcional.
-- No editar manualmente archivos generados como `frontend/src/routeTree.gen.ts` o `frontend/src/lib/api/generated/schema.d.ts`.
+- Paquete historico `com.forze.backend`.
+- Roles, permisos o estados de negocio no confirmados.
+- Endpoints de presupuestacion ficticios.
+- Edicion manual de `routeTree.gen.ts`.
+- Edicion manual de `schema.d.ts` cuando `/v3/api-docs` este disponible.

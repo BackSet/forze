@@ -1,4 +1,4 @@
-import { ArrowRight, Database, FileCode2, ShieldCheck } from 'lucide-react'
+import { ArrowRight, Database, FileCode2, LogIn, ShieldCheck } from 'lucide-react'
 
 import { ThemeToggle } from '@/components/theme-toggle'
 import { Button } from '@/components/ui/button'
@@ -47,13 +47,16 @@ export function HomePage() {
 
             <div className="mt-8 flex flex-wrap gap-3">
               <Button asChild>
+                <a href="/login">
+                  Iniciar sesion
+                  <LogIn aria-hidden="true" />
+                </a>
+              </Button>
+              <Button asChild variant="outline">
                 <a href="http://localhost:8080/v3/api-docs">
                   Abrir OpenAPI
                   <ArrowRight aria-hidden="true" />
                 </a>
-              </Button>
-              <Button asChild variant="outline">
-                <a href="http://localhost:8080/actuator/health">Ver health</a>
               </Button>
             </div>
           </div>
