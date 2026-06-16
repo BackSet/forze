@@ -14,7 +14,10 @@
 - `backend/`: Java 26, Spring Boot 4.1.0, Maven Wrapper.
 - `frontend/`: React 19, TypeScript 5.9, Vite 8.
 - `docker-compose.yml`: PostgreSQL y collector OTLP opcional.
-- `.env.example`: variables locales sin secretos reales.
+- Variables de entorno por componente (sin config general en la raiz):
+  - `backend/.env.example` -> `backend/.env` (variables del backend; lo carga `backend/run.sh`).
+  - `frontend/.env.example` -> `frontend/.env` (variables `VITE_*`; las carga Vite automaticamente).
+  - Los `*.env` son locales e ignorados por Git; solo se versionan los `*.env.example`.
 - `docs/ai/`: contexto canonico para agentes.
 
 ## Backend
@@ -83,11 +86,13 @@
 
 ## Comandos
 
-- `docker compose up -d`
+- `docker compose --env-file backend/.env up -d` (Postgres toma `DB_USERNAME`/`DB_PASSWORD` del backend)
 - `docker compose ps`
 - `cd backend && ./mvnw test`
 - `cd backend && ./mvnw verify`
-- `cd backend && ./mvnw spring-boot:run`
+- `cd backend && mvn spring-boot:run` (perfil `dev` importa `backend/.env` de forma nativa via
+  `spring.config.import=optional:file:.env[.properties]`; no requiere exportar variables a mano)
+- `./backend/run.sh` (equivalente: tambien carga `backend/.env`, fija Java 25 y ejecuta `mvn spring-boot:run`)
 - `cd frontend && npm ci`
 - `cd frontend && npm run api:generate`
 - `cd frontend && npm run typecheck`

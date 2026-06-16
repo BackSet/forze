@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Run the FORZE backend locally: loads ../.env into the environment and
+# Run the FORZE backend locally: loads backend/.env into the environment and
 # pins Java 25 (project target) so Maven doesn't fork the wrong JDK.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ENV_FILE="${SCRIPT_DIR}/../.env"
+ENV_FILE="${SCRIPT_DIR}/.env"
 
 if [[ -f "${ENV_FILE}" ]]; then
   set -a
