@@ -1,116 +1,62 @@
 # MODULE_MAP
 
-## Alcance de este mapa
+## Alcance
 
-- Fecha de auditoria: 2026-06-16.
 - Proyecto: FORZE.
-- Repositorio: BackSet/forze [verificado en Git].
-- Rama analizada: `dev` [verificado en Git].
-- Estado del producto: backend Spring Boot inicial sin modulos funcionales de negocio confirmados [verificado en Git].
+- Rama: `dev`.
+- Estado: monorepo inicial con cimientos tecnicos. No hay modulos funcionales de dominio implementados.
 
-## Inventario de modulos confirmados
+## Modulos Tecnicos
 
 ### Backend Application
 
-- Nombre canonico: Backend Application [inferido desde `BackendApplication` y `spring.application.name=backend`].
-- Proposito: arrancar la aplicacion Spring Boot del backend [verificado en Git].
-- Rutas frontend: ninguna confirmada [verificado en Git].
-- Paginas o componentes de entrada: no aplica; no hay frontend implementado [verificado en Git].
-- Endpoints, controllers o handlers: ninguno confirmado [verificado en Git].
-- Services o casos de uso: ninguno confirmado [verificado en Git].
-- Entidades, modelos, tablas o persistencia: ninguno confirmado [verificado en Git].
-- Permisos o roles: ninguno confirmado [verificado en Git].
-- Dependencias con otros modulos: usa auto-configuracion y dependencias declaradas en `backend/pom.xml` [verificado en Git].
-- Tests relacionados: `backend/src/test/java/com/forze/backend/BackendApplicationTests.java`, prueba `contextLoads` [verificado en Git].
-- Documentacion relacionada: `backend/HELP.md` contiene referencias generadas a Spring Boot, Maven, Flyway, Security, JPA, Web y Validation [verificado en Git].
+- Entrada: `backend/src/main/java/com/backset/forze/ForzeApplication.java`.
+- Proposito: arrancar la aplicacion Spring Boot y escanear propiedades.
+- Tests: `ForzeApplicationTests`, `ModulithArchitectureTests`, `PostgresContainerTests`.
 
-## Modulos tecnicos declarados por dependencia
+### Backend Config
 
-Estos elementos estan presentes como capacidades declaradas en el manifiesto Maven, pero no tienen implementacion propia confirmada en codigo del proyecto.
+- Paquete: `com.backset.forze.config`.
+- `CorsProperties`: origenes permitidos para CORS.
+- `SecurityConfig`: permite health/info/OpenAPI y deniega todo lo demas.
+- `OpenApiConfig`: metadatos del contrato OpenAPI.
 
-### Web MVC
+### Backend Web
 
-- Evidencia: `spring-boot-starter-webmvc` en `backend/pom.xml` [verificado en Git].
-- Endpoints/controllers/handlers: ninguno confirmado [verificado en Git].
-- Flujos criticos: pendiente de confirmar.
+- Paquete: `com.backset.forze.web`.
+- `ApiExceptionHandler`: manejo global de errores de validacion con `ProblemDetail`.
+- Endpoints de dominio: ninguno confirmado.
 
-### Data JPA
+### Frontend App Shell
 
-- Evidencia: `spring-boot-starter-data-jpa` en `backend/pom.xml` [verificado en Git].
-- Repositories: ninguno confirmado [verificado en Git].
-- Entidades/tablas: ninguna confirmada [verificado en Git].
-- Persistencia: pendiente de confirmar.
+- Entrada: `frontend/src/main.tsx`.
+- Providers: `frontend/src/components/providers.tsx`.
+- Router: `frontend/src/router.ts`, `frontend/src/routes/__root.tsx`, `frontend/src/routes/index.tsx`.
+- Pantalla inicial: `frontend/src/components/home-page.tsx`.
 
-### Flyway
+### Frontend API Client
 
-- Evidencia: `spring-boot-starter-flyway` y `flyway-database-postgresql` en `backend/pom.xml` [verificado en Git].
-- Migraciones: ninguna confirmada [verificado en Git].
-- Flujos de migracion: pendiente de confirmar.
+- Cliente: `frontend/src/lib/api/client.ts`.
+- Contrato generado: `frontend/src/lib/api/generated/schema.d.ts`.
+- Fuente de verdad: backend `/v3/api-docs`.
 
-### Security
+### Frontend UI Foundation
 
-- Evidencia: `spring-boot-starter-security` y `spring-boot-starter-security-test` en `backend/pom.xml` [verificado en Git].
-- Configuracion propia: ninguna confirmada [verificado en Git].
-- Roles/permisos: ninguno confirmado [verificado en Git].
-- Autenticacion/autorizacion: pendiente de confirmar.
+- Estilos globales y tokens: `frontend/src/index.css`.
+- Utilidades: `frontend/src/lib/utils.ts`.
+- Componentes confirmados:
+  - `components/ui/button.tsx`
+  - `components/theme-toggle.tsx`
+  - `components/home-page.tsx`
 
-### Validation
+## Flujos Confirmados
 
-- Evidencia: `spring-boot-starter-validation` en `backend/pom.xml` [verificado en Git].
-- DTOs o validaciones personalizadas: ninguna confirmada [verificado en Git].
+- Health backend: `GET /actuator/health` responde `UP`.
+- OpenAPI backend: `GET /v3/api-docs` responde contrato OpenAPI 3.1.0 sin paths de dominio.
+- Generacion de tipos: `npm run openapi:generate` crea `schema.d.ts` desde el backend activo.
+- Frontend inicial: ruta `/` muestra los cimientos tecnicos de FORZE.
 
-### PostgreSQL Driver
+## Modulos De Dominio Pendientes
 
-- Evidencia: dependencia `org.postgresql:postgresql` con scope `runtime` en `backend/pom.xml` [verificado en Git].
-- Datasource: no configurado en archivos rastreados [verificado en Git].
-- Tablas/indices/constraints: ninguno confirmado [verificado en Git].
-
-## Relaciones y dependencias entre modulos
-
-- `BackendApplication` depende del paquete base `com.forze.backend` y de la auto-configuracion de Spring Boot [verificado en Git].
-- No hay relaciones funcionales entre modulos de dominio porque no existen modulos de dominio confirmados [verificado en Git].
-- Las capacidades Web, JPA, Flyway, Security, Validation y PostgreSQL estan declaradas en Maven, pero su uso funcional esta pendiente de confirmar [verificado en Git].
-
-## Flujos criticos confirmados
-
-- Arranque de aplicacion Spring Boot desde `BackendApplication.main` [verificado en Git].
-- Carga de contexto Spring en test `BackendApplicationTests.contextLoads` [verificado en Git].
-- No hay flujos de negocio, autenticacion, persistencia, API, UI, pagos, notificaciones u otros flujos criticos confirmados [verificado en Git].
-
-## Zonas de busqueda
-
-### Frontend
-
-- `frontend/`: carpeta existente sin archivos rastreados [verificado en Git].
-
-### Backend
-
-- `backend/src/main/java/com/forze/backend/`: codigo Java productivo [verificado en Git].
-- `backend/src/main/resources/`: configuracion y futuros recursos de aplicacion [verificado en Git].
-- `backend/src/test/java/com/forze/backend/`: tests Java [verificado en Git].
-- `backend/pom.xml`: dependencias, version de Java y plugins Maven [verificado en Git].
-
-### Base de datos
-
-- No hay carpeta de migraciones confirmada. Si se usa Flyway con convenciones Spring Boot, la ubicacion esperada seria `backend/src/main/resources/db/migration`, pero esa ruta no existe actualmente [verificado en Git, inferido].
-
-### Documentacion
-
-- `backend/HELP.md`: referencias generadas por Spring Initializr [verificado en Git].
-- `docs/ai/`: contexto tecnico canonico para Agentes [verificado en Git].
-
-## Integraciones externas
-
-- PostgreSQL: dependencia runtime declarada, sin configuracion de conexion confirmada [verificado en Git].
-- Servicios externos adicionales: ninguno confirmado [verificado en Git].
-
-## Pendientes de confirmar
-
-- Modulos funcionales del dominio.
-- Rutas frontend y paginas.
-- API publica o privada.
-- Controllers, handlers, services, repositories, entidades, DTOs y mappers.
-- Permisos, roles, estados, enums y constantes de dominio.
-- Esquema de base de datos, migraciones y seeds.
-- Integraciones externas reales.
-- Flujos criticos del negocio.
+- Proyectos, clientes, presupuestos, capitulos, rubros, APU, insumos, proveedores, costos historicos, versiones, aprobaciones, exportaciones y ejecucion son conceptos de producto confirmados en `PRODUCT.md`, pero no tienen implementacion en codigo.
+- No hay entidades JPA, tablas, migraciones, controllers, services, repositories, permisos o rutas frontend de dominio.

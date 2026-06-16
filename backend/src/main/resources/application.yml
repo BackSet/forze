@@ -1,0 +1,45 @@
+debug: false
+
+spring:
+  application:
+    name: forze-backend
+  web:
+    error:
+      whitelabel:
+        enabled: false
+  datasource:
+    url: ${FORZE_DB_URL:jdbc:postgresql://localhost:5432/forze}
+    username: ${FORZE_DB_USERNAME:forze}
+    password: ${FORZE_DB_PASSWORD:forze}
+  flyway:
+    enabled: true
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+
+server:
+  port: ${FORZE_BACKEND_PORT:8080}
+  error:
+    include-message: never
+    include-binding-errors: never
+    include-stacktrace: never
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+
+forze:
+  security:
+    cors:
+      allowed-origins:
+        - ${FORZE_FRONTEND_ORIGIN:http://localhost:5173}
