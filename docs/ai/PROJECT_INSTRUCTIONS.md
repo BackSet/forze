@@ -25,7 +25,12 @@
 - Submodulos actuales: `identity` y `document`.
 - Cada modulo mantiene `api`, `application`, `domain`, `infrastructure` cuando aplica.
 - No crear carpetas globales de controllers/services/repositories.
-- Flyway es propietario del esquema; Hibernate solo valida.
+- Flyway es propietario del esquema; Hibernate solo valida. No editar `V1`; nuevas migraciones desde `V12`.
+- Budgeting: dinero en `BigDecimal`/`numeric` (unitarios `18,4`, totales `18,2` HALF_UP, porcentajes `7,4`,
+  cantidades `18,4`, rendimientos/desperdicio `18,6`); moneda ISO-4217 por presupuesto sin tipos de cambio;
+  enums via `varchar`+`CHECK`; tablas con prefijo `budgeting_`; FK como `UUID` planos.
+- Budgeting: una version de presupuesto `APROBADO` es inmutable; los precios se congelan como snapshot en
+  la version y no se reconstruyen desde catalogos/precios actuales.
 - Access JWT + refresh cookie HttpOnly.
 - Refresh tokens siempre hasheados.
 - Actuator solo health/info.
