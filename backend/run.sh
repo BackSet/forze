@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Run the FORZE backend locally: loads backend/.env into the environment and
-# pins Java 25 (project target) so Maven doesn't fork the wrong JDK.
+# pins Java 26 (project target) so Maven doesn't fork the wrong JDK.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -15,7 +15,7 @@ else
   echo "warning: ${ENV_FILE} not found; relying on existing environment" >&2
 fi
 
-export JAVA_HOME="${JAVA_HOME:-/usr/lib/jvm/java-25-openjdk}"
+export JAVA_HOME="${JAVA_HOME:-/usr/lib/jvm/jdk-26.0.1-oracle-x64}"
 
 cd "${SCRIPT_DIR}"
 exec mvn spring-boot:run "$@"

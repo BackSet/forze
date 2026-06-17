@@ -102,7 +102,7 @@
 - `cd backend && ./mvnw verify`
 - `cd backend && mvn spring-boot:run` (perfil `dev` importa `backend/.env` de forma nativa via
   `spring.config.import=optional:file:.env[.properties]`; no requiere exportar variables a mano)
-- `./backend/run.sh` (equivalente: tambien carga `backend/.env`, fija Java 25 y ejecuta `mvn spring-boot:run`)
+- `./backend/run.sh` (equivalente: tambien carga `backend/.env`, fija Java 26 y ejecuta `mvn spring-boot:run`)
 - `cd frontend && npm ci`
 - `cd frontend && npm run api:generate`
 - `cd frontend && npm run typecheck`
