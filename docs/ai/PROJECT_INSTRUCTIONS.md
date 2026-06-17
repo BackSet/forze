@@ -25,7 +25,11 @@
 - Submodulos actuales: `identity` y `document`.
 - Cada modulo mantiene `api`, `application`, `domain`, `infrastructure` cuando aplica.
 - No crear carpetas globales de controllers/services/repositories.
-- Flyway es propietario del esquema; Hibernate solo valida. No editar `V1`; nuevas migraciones desde `V12`.
+- Flyway es propietario del esquema; Hibernate solo valida. No editar migraciones historicas `V1..V13`; nuevas migraciones desde `V14`.
+- Autorizacion RBAC persistente: permisos y roles son datos (`budgeting_permissions`, `budgeting_roles`,
+  `budgeting_role_permissions`); autorizar por permiso (no por rol) via `@PreAuthorize("@securityService.hasPermission('...')")`.
+  El rol de sistema `ADMINISTRADOR` (`all_permissions=true`) siempre tiene todos los permisos registrados, no es editable
+  ni eliminable, y no se puede degradar ni eliminar al ultimo `ADMINISTRADOR` de una organizacion.
 - Budgeting: dinero en `BigDecimal`/`numeric` (unitarios `18,4`, totales `18,2` HALF_UP, porcentajes `7,4`,
   cantidades `18,4`, rendimientos/desperdicio `18,6`); moneda ISO-4217 por presupuesto sin tipos de cambio;
   enums via `varchar`+`CHECK`; tablas con prefijo `budgeting_`; FK como `UUID` planos.

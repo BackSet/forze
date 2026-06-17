@@ -93,16 +93,18 @@
 
 ## Roles y Permisos
 
-- Roles de membresía: `ADMINISTRADOR, PRESUPUESTISTA, APROBADOR, COMPRAS`.
-- Permisos granulares:
-  - Proyectos: `READ_PROJECTS, WRITE_PROJECTS`.
-  - Presupuestos: `READ_BUDGETS, WRITE_BUDGETS`.
-  - Catálogo: `READ_CATALOG, WRITE_CATALOG`.
-  - Proveedores: `READ_SUPPLIERS, WRITE_SUPPLIERS`.
-  - Aprobaciones: `READ_APPROVALS, WRITE_APPROVALS`.
-  - Documentos: `READ_DOCUMENTS, WRITE_DOCUMENTS`.
-  - Administración: `READ_ADMIN, WRITE_ADMIN`.
-  - Auditoría: `READ_AUDIT`.
+- Roles del sistema (canónicos, globales, `is_system=true`): `ADMINISTRADOR, PRESUPUESTISTA, APROBADOR, COMPRAS`.
+  `ADMINISTRADOR` tiene `all_permissions=true` (siempre todos los permisos). Las organizaciones pueden crear
+  roles personalizados (por organización; código en MAYUSCULAS_CON_GUION_BAJO).
+- Permisos granulares (códigos reales en `ForzePermission` y tabla `budgeting_permissions`):
+  - Proyectos: `PROYECTOS_READ, PROYECTOS_WRITE`.
+  - Presupuestos: `PRESUPUESTOS_READ, PRESUPUESTOS_WRITE`.
+  - Catálogos: `CATALOGOS_READ, CATALOGOS_WRITE`.
+  - Proveedores: `PROVEEDORES_READ, PROVEEDORES_WRITE`.
+  - Aprobaciones: `APROBACIONES_READ, APROBACIONES_WRITE`.
+  - Documentos: `DOCUMENTOS_READ, DOCUMENTOS_WRITE`.
+  - Administración: `ADMINISTRACION_READ, ADMINISTRACION_WRITE`.
+  - Auditoría: `AUDITORIA_READ`.
 
 ## Evitar
 

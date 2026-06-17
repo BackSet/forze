@@ -1,9 +1,10 @@
+import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as zod from 'zod'
 import { toast } from 'sonner'
-import { Shield, UserPlus, Users, ToggleLeft, ToggleRight, Trash2 } from 'lucide-react'
+import { Shield, ShieldCheck, UserPlus, Users, ToggleLeft, ToggleRight, Trash2, Plus, Check } from 'lucide-react'
 
 import { api } from '@/lib/api/client'
 import { apiErrorMessage } from '@/lib/api/errors'
@@ -13,7 +14,7 @@ import { useSessionStore } from '@/lib/auth/session-store'
 
 const addMemberSchema = zod.object({
   usernameOrEmail: zod.string().min(3, 'Debe tener al menos 3 caracteres'),
-  role: zod.enum(['ADMINISTRADOR', 'PRESUPUESTISTA', 'APROBADOR', 'COMPRAS']),
+  role: zod.string().min(1, 'Selecciona un rol'),
 })
 
 type AddMemberFormValues = zod.infer<typeof addMemberSchema>
@@ -41,6 +42,49 @@ export function OrganizationTab() {
     ...api.queryOptions('get', '/api/admin/users'),
     enabled: !!activeOrgId,
     retry: false,
+  })
+
+  // RBAC: roles (system + custom) and the registered permission catalog.
+  const rolesQuery = useQuery({
+    ...api.queryOptions('get', '/api/roles'),
+    enabled: !!activeOrgId,
+  })
+  const permissionsQuery = useQuery({
+    ...api.queryOptions('get', '/api/permissions'),
+    enabled: !!activeOrgId,
+  })
+
+  const [newRoleCode, setNewRoleCode] = useState('')
+  const [newRoleName, setNewRoleName] = useState('')
+  const [newRolePerms, setNewRolePerms] = useState<string[]>([])
+
+  function toggleNewRolePerm(code: string) {
+    setNewRolePerms((current) =>
+      current.includes(code) ? current.filter((c) => c !== code) : [...current, code],
+    )
+  }
+
+  const createRoleMutation = api.useMutation('post', '/api/roles', {
+    onSuccess: () => {
+      toast.success('Rol personalizado creado')
+      queryClient.invalidateQueries({ queryKey: ['get', '/api/roles'] })
+      setNewRoleCode('')
+      setNewRoleName('')
+      setNewRolePerms([])
+    },
+    onError: (err) => {
+      toast.error(apiErrorMessage(err, 'Error al crear el rol'))
+    },
+  })
+
+  const deleteRoleMutation = api.useMutation('delete', '/api/roles/{id}', {
+    onSuccess: () => {
+      toast.success('Rol eliminado')
+      queryClient.invalidateQueries({ queryKey: ['get', '/api/roles'] })
+    },
+    onError: (err) => {
+      toast.error(apiErrorMessage(err, 'Error al eliminar el rol'))
+    },
   })
 
   // Mutations using openapi-react-query hooks directly
@@ -158,10 +202,11 @@ export function OrganizationTab() {
                 {...addMemberForm.register('role')}
                 aria-label="Rol"
               >
-                <option value="ADMINISTRADOR">Administrador</option>
-                <option value="PRESUPUESTISTA">Presupuestista</option>
-                <option value="APROBADOR">Aprobador</option>
-                <option value="COMPRAS">Compras</option>
+                {rolesQuery.data?.map((role) => (
+                  <option key={role.id} value={role.code}>
+                    {role.name}
+                  </option>
+                ))}
               </select>
             </div>
             <Button type="submit" disabled={addMemberMutation.isPending}>
@@ -321,6 +366,119 @@ export function OrganizationTab() {
               </table>
             </div>
           )}
+        </div>
+      </div>
+
+      {/* Roles & Permissions (RBAC) */}
+      <div className="rounded-xl border border-border bg-panel p-5 space-y-6">
+        <div className="flex items-center gap-2 border-b border-border pb-3">
+          <ShieldCheck className="size-5 text-primary" />
+          <h2 className="text-lg font-semibold">Roles y Permisos</h2>
+        </div>
+
+        {/* Create custom role */}
+        <div className="rounded-lg border border-border/80 bg-background p-4 space-y-3">
+          <p className="text-sm font-semibold">Crear rol personalizado</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <Input
+              placeholder="Código (ej. REVISOR)"
+              value={newRoleCode}
+              onChange={(e) => setNewRoleCode(e.target.value)}
+              aria-label="Código del rol"
+            />
+            <Input
+              placeholder="Nombre visible"
+              value={newRoleName}
+              onChange={(e) => setNewRoleName(e.target.value)}
+              aria-label="Nombre del rol"
+            />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {permissionsQuery.data?.map((perm) => {
+              const selected = newRolePerms.includes(perm.code!)
+              return (
+                <button
+                  type="button"
+                  key={perm.code}
+                  onClick={() => toggleNewRolePerm(perm.code!)}
+                  aria-pressed={selected}
+                  title={perm.description}
+                  className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${
+                    selected
+                      ? 'border-primary bg-primary/10 text-primary'
+                      : 'border-border text-muted-foreground hover:bg-accent/40'
+                  }`}
+                >
+                  {selected && <Check className="size-3" />}
+                  {perm.code}
+                </button>
+              )
+            })}
+          </div>
+          <Button
+            size="sm"
+            disabled={createRoleMutation.isPending || !newRoleCode.trim() || !newRoleName.trim()}
+            onClick={() =>
+              createRoleMutation.mutate({
+                body: { code: newRoleCode.trim(), name: newRoleName.trim(), permissions: newRolePerms },
+              })
+            }
+          >
+            <Plus className="size-4" />
+            Crear rol
+          </Button>
+        </div>
+
+        {/* Permission matrix */}
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr className="border-b border-border text-muted-foreground font-semibold">
+                <th className="py-2 pr-4 sticky left-0 bg-panel">Permiso</th>
+                {rolesQuery.data?.map((role) => (
+                  <th key={role.id} className="py-2 px-2 text-center whitespace-nowrap">
+                    <div className="flex flex-col items-center gap-1">
+                      <span>{role.name}</span>
+                      {role.system ? (
+                        <span className="text-[10px] font-normal text-muted-foreground">sistema</span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => deleteRoleMutation.mutate({ params: { path: { id: role.id! } } })}
+                          disabled={deleteRoleMutation.isPending}
+                          className="text-[10px] font-normal text-destructive hover:underline inline-flex items-center gap-0.5"
+                          aria-label={`Eliminar rol ${role.name}`}
+                        >
+                          <Trash2 className="size-3" /> eliminar
+                        </button>
+                      )}
+                    </div>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {permissionsQuery.data?.map((perm) => (
+                <tr key={perm.code} className="hover:bg-accent/40 transition-colors">
+                  <td className="py-2 pr-4 sticky left-0 bg-panel" title={perm.description}>
+                    <span className="font-medium">{perm.code}</span>
+                  </td>
+                  {rolesQuery.data?.map((role) => {
+                    const has = role.allPermissions || role.permissions?.includes(perm.code!)
+                    return (
+                      <td key={role.id} className="py-2 px-2 text-center">
+                        {has ? (
+                          <Check className="size-4 text-emerald-500 inline" aria-label="permitido" />
+                        ) : (
+                          <span className="text-muted-foreground/40" aria-label="sin permiso">—</span>
+                        )}
+                      </td>
+                    )
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

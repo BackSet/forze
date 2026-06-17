@@ -16,11 +16,14 @@ import {
   CheckSquare,
   FileText,
   Activity,
-  Users
+  Users,
+  ShieldAlert,
+  type LucideIcon
 } from 'lucide-react'
 
 import { api } from '@/lib/api/client'
 import { apiErrorMessage } from '@/lib/api/errors'
+import { useEffectiveAccess, type Permission } from '@/lib/auth/permissions'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ThemeToggle } from '@/components/theme-toggle'
@@ -44,12 +47,66 @@ const createOrgSchema = zod.object({
 })
 type CreateOrgFormValues = zod.infer<typeof createOrgSchema>
 
+type NavItem = { id: string; label: string; icon: LucideIcon; permission: Permission }
+type NavGroup = { group: string; items: NavItem[] }
+
+// Each surface requires a read permission. The menu hides what the user cannot
+// read, and the content area shows a 403 if reached without permission. The
+// backend @PreAuthorize remains the real authority.
+const NAV_GROUPS: NavGroup[] = [
+  {
+    group: 'Gestión Comercial',
+    items: [
+      { id: 'projects', label: 'Clientes y Proyectos', icon: Briefcase, permission: 'PROYECTOS_READ' },
+      { id: 'catalog', label: 'Catálogo Técnico', icon: Package, permission: 'CATALOGOS_READ' },
+      { id: 'suppliers', label: 'Proveedores y Cotización', icon: Truck, permission: 'PROVEEDORES_READ' },
+    ],
+  },
+  {
+    group: 'Presupuestos',
+    items: [
+      { id: 'budgets', label: 'Versiones y Tasas', icon: History, permission: 'PRESUPUESTOS_READ' },
+      { id: 'editor', label: 'Planilla Editor', icon: Edit3, permission: 'PRESUPUESTOS_READ' },
+      { id: 'scenarios', label: 'Escenarios Comparación', icon: Scale, permission: 'PRESUPUESTOS_READ' },
+      { id: 'approvals', label: 'Flujo Aprobación', icon: CheckSquare, permission: 'APROBACIONES_READ' },
+    ],
+  },
+  {
+    group: 'Reportes y Seguridad',
+    items: [
+      { id: 'documents', label: 'Documentos PDF', icon: FileText, permission: 'DOCUMENTOS_READ' },
+      { id: 'audit', label: 'Auditoría', icon: Activity, permission: 'AUDITORIA_READ' },
+      { id: 'organization', label: 'Miembros y Usuarios', icon: Users, permission: 'ADMINISTRACION_READ' },
+    ],
+  },
+]
+
+const TAB_PERMISSION: Record<string, Permission> = Object.fromEntries(
+  NAV_GROUPS.flatMap((g) => g.items).map((i) => [i.id, i.permission]),
+) as Record<string, Permission>
+
+function Forbidden403() {
+  return (
+    <div className="flex flex-col items-center justify-center text-center gap-3 py-20" role="alert">
+      <ShieldAlert className="size-10 text-destructive" aria-hidden="true" />
+      <h2 className="text-xl font-bold">Acceso denegado (403)</h2>
+      <p className="text-sm text-muted-foreground max-w-sm">
+        No tienes permisos para ver esta sección en la organización activa. Solicita acceso a un administrador.
+      </p>
+    </div>
+  )
+}
+
 export function AppPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const user = useSessionStore((state) => state.user)
   const activeOrgId = useSessionStore((state) => state.activeOrganizationId)
   const setActiveOrgId = useSessionStore((state) => state.setActiveOrganizationId)
+  const permissions = useSessionStore((state) => state.permissions)
+
+  // Resolve the current user's role/permissions for the active organization.
+  useEffectiveAccess()
   
   const [activeTab, setActiveTab] = useState<string>('projects')
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
@@ -140,6 +197,7 @@ export function AppPage() {
                   const select = document.getElementById('orgSelect') as HTMLSelectElement
                   if (select.value) {
                     setActiveOrgId(select.value)
+                    queryClient.invalidateQueries()
                     toast.success('Organización activa seleccionada')
                   }
                 }}
@@ -199,6 +257,7 @@ export function AppPage() {
                 setSelectedProjectId(null)
                 setSelectedBudgetId(null)
                 setSelectedVersionId(null)
+                queryClient.invalidateQueries()
                 toast.success('Organización cambiada')
               }}
               aria-label="Seleccionar organización activa"
@@ -231,113 +290,43 @@ export function AppPage() {
         {/* Sidebar Navigation */}
         <aside className="w-60 border-r border-border bg-panel flex flex-col p-4 shrink-0 overflow-y-auto">
           <nav className="space-y-1" aria-label="Navegación principal">
-            <div className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider px-3 mb-2">
-              Gestión Comercial
-            </div>
-            <button
-              onClick={() => setActiveTab('projects')}
-              className={`flex w-full items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
-                activeTab === 'projects' ? 'bg-primary text-primary-foreground shadow-xs' : 'text-muted-foreground hover:bg-accent/40'
-              }`}
-            >
-              <Briefcase className="size-4 shrink-0" />
-              Clientes y Proyectos
-            </button>
-            <button
-              onClick={() => setActiveTab('catalog')}
-              className={`flex w-full items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
-                activeTab === 'catalog' ? 'bg-primary text-primary-foreground shadow-xs' : 'text-muted-foreground hover:bg-accent/40'
-              }`}
-            >
-              <Package className="size-4 shrink-0" />
-              Catálogo Técnico
-            </button>
-            <button
-              onClick={() => setActiveTab('suppliers')}
-              className={`flex w-full items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
-                activeTab === 'suppliers' ? 'bg-primary text-primary-foreground shadow-xs' : 'text-muted-foreground hover:bg-accent/40'
-              }`}
-            >
-              <Truck className="size-4 shrink-0" />
-              Proveedores y Cotización
-            </button>
-
-            <div className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider px-3 pt-6 mb-2">
-              Presupuestos
-            </div>
-            <button
-              onClick={() => setActiveTab('budgets')}
-              className={`flex w-full items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
-                activeTab === 'budgets' ? 'bg-primary text-primary-foreground shadow-xs' : 'text-muted-foreground hover:bg-accent/40'
-              }`}
-            >
-              <History className="size-4 shrink-0" />
-              Versiones y Tasas
-            </button>
-            <button
-              onClick={() => setActiveTab('editor')}
-              className={`flex w-full items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
-                activeTab === 'editor' ? 'bg-primary text-primary-foreground shadow-xs' : 'text-muted-foreground hover:bg-accent/40'
-              }`}
-            >
-              <Edit3 className="size-4 shrink-0" />
-              Planilla Editor
-            </button>
-            <button
-              onClick={() => setActiveTab('scenarios')}
-              className={`flex w-full items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
-                activeTab === 'scenarios' ? 'bg-primary text-primary-foreground shadow-xs' : 'text-muted-foreground hover:bg-accent/40'
-              }`}
-            >
-              <Scale className="size-4 shrink-0" />
-              Escenarios Comparación
-            </button>
-            <button
-              onClick={() => setActiveTab('approvals')}
-              className={`flex w-full items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
-                activeTab === 'approvals' ? 'bg-primary text-primary-foreground shadow-xs' : 'text-muted-foreground hover:bg-accent/40'
-              }`}
-            >
-              <CheckSquare className="size-4 shrink-0" />
-              Flujo Aprobación
-            </button>
-
-            <div className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider px-3 pt-6 mb-2">
-              Reportes y Seguridad
-            </div>
-            <button
-              onClick={() => setActiveTab('documents')}
-              className={`flex w-full items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
-                activeTab === 'documents' ? 'bg-primary text-primary-foreground shadow-xs' : 'text-muted-foreground hover:bg-accent/40'
-              }`}
-            >
-              <FileText className="size-4 shrink-0" />
-              Documentos PDF
-            </button>
-            <button
-              onClick={() => setActiveTab('audit')}
-              className={`flex w-full items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
-                activeTab === 'audit' ? 'bg-primary text-primary-foreground shadow-xs' : 'text-muted-foreground hover:bg-accent/40'
-              }`}
-            >
-              <Activity className="size-4 shrink-0" />
-              Auditoría
-            </button>
-            <button
-              onClick={() => setActiveTab('organization')}
-              className={`flex w-full items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
-                activeTab === 'organization' ? 'bg-primary text-primary-foreground shadow-xs' : 'text-muted-foreground hover:bg-accent/40'
-              }`}
-            >
-              <Users className="size-4 shrink-0" />
-              Miembros y Usuarios
-            </button>
+            {NAV_GROUPS.map((group) => {
+              const visible = group.items.filter((item) => permissions.includes(item.permission))
+              if (visible.length === 0) return null
+              return (
+                <div key={group.group}>
+                  <div className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider px-3 pt-6 first:pt-0 mb-2">
+                    {group.group}
+                  </div>
+                  {visible.map((item) => {
+                    const Icon = item.icon
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => setActiveTab(item.id)}
+                        aria-current={activeTab === item.id ? 'page' : undefined}
+                        className={`flex w-full items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
+                          activeTab === item.id ? 'bg-primary text-primary-foreground shadow-xs' : 'text-muted-foreground hover:bg-accent/40'
+                        }`}
+                      >
+                        <Icon className="size-4 shrink-0" />
+                        {item.label}
+                      </button>
+                    )
+                  })}
+                </div>
+              )
+            })}
           </nav>
         </aside>
 
         {/* Dynamic Content Surface */}
         <main className="flex-1 overflow-y-auto bg-background p-6">
           <div className="w-full max-w-6xl mx-auto">
+            {TAB_PERMISSION[activeTab] && !permissions.includes(TAB_PERMISSION[activeTab]) ? (
+              <Forbidden403 />
+            ) : (
+              <>
             {activeTab === 'organization' && <OrganizationTab />}
             {activeTab === 'projects' && <ClientsProjectsTab />}
             {activeTab === 'catalog' && <CatalogTab />}
@@ -358,6 +347,8 @@ export function AppPage() {
             {activeTab === 'approvals' && <ApprovalsTab selectedVersionId={selectedVersionId} />}
             {activeTab === 'documents' && <DocumentsTab selectedVersionId={selectedVersionId} />}
             {activeTab === 'audit' && <AuditTab />}
+              </>
+            )}
           </div>
         </main>
       </div>

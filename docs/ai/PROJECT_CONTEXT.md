@@ -32,8 +32,16 @@
 - `configuration`: propiedades, seguridad, OpenAPI, CORS, Clock.
 - `shared.api`: `ProblemDetail` y excepciones API.
 - Persistencia: PostgreSQL + Flyway; Hibernate `ddl-auto=validate`.
-- Migraciones: `V1__identity_auth.sql` (identidad) y `V2..V12` (modulo `budgeting`).
+- Migraciones: `V1__identity_auth.sql` (identidad) y `V2..V13` (modulo `budgeting`; `V13` = RBAC persistente).
 - Aislamiento por organización implementado mediante validación de membresías en filtro/interceptor.
+- Autorizacion RBAC persistente: permisos, roles y su mapeo son datos (`budgeting_permissions`,
+  `budgeting_roles`, `budgeting_role_permissions`). `SecurityService` resuelve los permisos efectivos del
+  usuario en la organizacion activa y los expone en `@PreAuthorize` (autoriza por permiso, no por rol) y en
+  `GET /api/me/access`. Roles de sistema (globales) canónicos: ADMINISTRADOR/PRESUPUESTISTA/APROBADOR/COMPRAS;
+  cada organizacion puede crear roles personalizados con su matriz de permisos. ADMINISTRADOR
+  (`all_permissions=true`) siempre tiene todos los permisos (incluidos nuevos), no es editable/eliminable y no
+  puede degradarse/eliminarse al ultimo administrador. El frontend hace gating por permiso
+  (`usePermission`/`PermissionGate`/menu/403) pero el backend es la autoridad.
 
 ## Estrategia de datos de presupuestacion
 

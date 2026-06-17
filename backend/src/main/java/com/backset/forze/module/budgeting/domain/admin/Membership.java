@@ -5,8 +5,6 @@ import java.util.UUID;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
@@ -26,9 +24,9 @@ public class Membership {
 	@Column(name = "user_id", nullable = false)
 	private UUID userId;
 
-	@Column(nullable = false)
-	@Enumerated(EnumType.STRING)
-	private MembershipRole role;
+	// Role code (references budgeting_roles.code for a system or org-scoped role).
+	@Column(name = "role", nullable = false)
+	private String role;
 
 	@Column(name = "created_at", nullable = false)
 	private Instant createdAt;
@@ -42,7 +40,7 @@ public class Membership {
 	protected Membership() {
 	}
 
-	public Membership(UUID id, UUID organizationId, UUID userId, MembershipRole role) {
+	public Membership(UUID id, UUID organizationId, UUID userId, String role) {
 		this.id = id;
 		this.organizationId = organizationId;
 		this.userId = userId;
@@ -73,11 +71,11 @@ public class Membership {
 		return userId;
 	}
 
-	public MembershipRole role() {
+	public String role() {
 		return role;
 	}
 
-	public void changeRole(MembershipRole role) {
+	public void changeRole(String role) {
 		this.role = role;
 	}
 

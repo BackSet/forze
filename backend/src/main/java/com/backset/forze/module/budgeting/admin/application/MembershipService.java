@@ -6,6 +6,7 @@ import java.util.UUID;
 import com.backset.forze.module.budgeting.domain.admin.Membership;
 import com.backset.forze.module.budgeting.domain.admin.MembershipRole;
 import com.backset.forze.module.budgeting.infrastructure.MembershipRepository;
+import com.backset.forze.module.budgeting.infrastructure.RoleRepository;
 import com.backset.forze.module.identity.domain.UserAccount;
 import com.backset.forze.module.identity.infrastructure.UserAccountRepository;
 import com.backset.forze.shared.api.ApiException;
@@ -16,12 +17,17 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class MembershipService {
 
+	private static final String ADMIN_ROLE = MembershipRole.ADMINISTRADOR.name();
+
 	private final MembershipRepository membershipRepository;
 	private final UserAccountRepository userAccountRepository;
+	private final RoleRepository roleRepository;
 
-	public MembershipService(MembershipRepository membershipRepository, UserAccountRepository userAccountRepository) {
+	public MembershipService(MembershipRepository membershipRepository, UserAccountRepository userAccountRepository,
+			RoleRepository roleRepository) {
 		this.membershipRepository = membershipRepository;
 		this.userAccountRepository = userAccountRepository;
+		this.roleRepository = roleRepository;
 	}
 
 	@Transactional(readOnly = true)
@@ -36,7 +42,9 @@ public class MembershipService {
 	}
 
 	@Transactional
-	public Membership addMember(UUID organizationId, String usernameOrEmail, MembershipRole role) {
+	public Membership addMember(UUID organizationId, String usernameOrEmail, String roleCode) {
+		requireValidRole(organizationId, roleCode);
+
 		UserAccount user = userAccountRepository.findByUsername(usernameOrEmail)
 				.or(() -> userAccountRepository.findAll().stream()
 						.filter(u -> usernameOrEmail.equalsIgnoreCase(u.email()))
@@ -47,42 +55,58 @@ public class MembershipService {
 			throw new ApiException(HttpStatus.BAD_REQUEST, "El usuario ya es miembro de esta organizacion.");
 		}
 
-		Membership membership = new Membership(UUID.randomUUID(), organizationId, user.id(), role);
+		Membership membership = new Membership(UUID.randomUUID(), organizationId, user.id(), roleCode);
 		return membershipRepository.save(membership);
 	}
 
 	@Transactional
-	public Membership updateRole(UUID organizationId, UUID membershipId, MembershipRole role) {
-		Membership membership = membershipRepository.findById(membershipId)
-				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Membresia no encontrada."));
+	public Membership updateRole(UUID organizationId, UUID membershipId, String roleCode) {
+		requireValidRole(organizationId, roleCode);
+		Membership membership = requireMembership(organizationId, membershipId);
 
-		if (!membership.organizationId().equals(organizationId)) {
-			throw new ApiException(HttpStatus.FORBIDDEN, "La membresia no pertenece a la organizacion activa.");
+		// Protect the last administrator: it cannot be demoted to a non-admin role.
+		if (ADMIN_ROLE.equals(membership.role()) && !ADMIN_ROLE.equals(roleCode) && isLastAdmin(organizationId)) {
+			throw new ApiException(HttpStatus.BAD_REQUEST, "No se puede degradar al ultimo administrador de la organizacion.");
 		}
 
-		membership.changeRole(role);
+		membership.changeRole(roleCode);
 		return membershipRepository.save(membership);
 	}
 
 	@Transactional
 	public void removeMember(UUID organizationId, UUID membershipId) {
-		Membership membership = membershipRepository.findById(membershipId)
-				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Membresia no encontrada."));
+		Membership membership = requireMembership(organizationId, membershipId);
 
-		if (!membership.organizationId().equals(organizationId)) {
-			throw new ApiException(HttpStatus.FORBIDDEN, "La membresia no pertenece a la organizacion activa.");
-		}
-
-		long adminCount = membershipRepository.findByOrganizationId(organizationId).stream()
-				.filter(m -> m.role() == MembershipRole.ADMINISTRADOR)
-				.count();
-
-		if (membership.role() == MembershipRole.ADMINISTRADOR && adminCount <= 1) {
+		if (ADMIN_ROLE.equals(membership.role()) && isLastAdmin(organizationId)) {
 			throw new ApiException(HttpStatus.BAD_REQUEST, "No se puede eliminar al ultimo administrador de la organizacion.");
 		}
 
 		membershipRepository.delete(membership);
 	}
 
-	public record MembershipDetails(UUID id, UUID organizationId, UUID userId, String username, String email, MembershipRole role) {}
+	private Membership requireMembership(UUID organizationId, UUID membershipId) {
+		Membership membership = membershipRepository.findById(membershipId)
+				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Membresia no encontrada."));
+		if (!membership.organizationId().equals(organizationId)) {
+			throw new ApiException(HttpStatus.FORBIDDEN, "La membresia no pertenece a la organizacion activa.");
+		}
+		return membership;
+	}
+
+	private boolean isLastAdmin(UUID organizationId) {
+		long adminCount = membershipRepository.findByOrganizationId(organizationId).stream()
+				.filter(m -> ADMIN_ROLE.equals(m.role()))
+				.count();
+		return adminCount <= 1;
+	}
+
+	private void requireValidRole(UUID organizationId, String roleCode) {
+		boolean exists = roleRepository.findByOrganizationIdAndCode(organizationId, roleCode).isPresent()
+				|| roleRepository.findByOrganizationIdIsNullAndCode(roleCode).isPresent();
+		if (!exists) {
+			throw new ApiException(HttpStatus.BAD_REQUEST, "El rol indicado no existe en la organizacion.");
+		}
+	}
+
+	public record MembershipDetails(UUID id, UUID organizationId, UUID userId, String username, String email, String role) {}
 }

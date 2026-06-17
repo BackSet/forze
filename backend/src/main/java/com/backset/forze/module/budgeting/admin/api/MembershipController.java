@@ -5,11 +5,9 @@ import java.util.UUID;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 
 import com.backset.forze.module.budgeting.admin.application.MembershipService;
 import com.backset.forze.module.budgeting.domain.admin.Membership;
-import com.backset.forze.module.budgeting.domain.admin.MembershipRole;
 import com.backset.forze.shared.TenantContext;
 import io.swagger.v3.oas.annotations.Operation;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -68,12 +66,12 @@ public class MembershipController {
 
 	public record AddMemberRequest(
 			@NotBlank String usernameOrEmail,
-			@NotNull MembershipRole role
+			@NotBlank String role
 	) {}
 
 	public record UpdateMemberRoleRequest(
-			@NotNull MembershipRole role
+			@NotBlank String role
 	) {}
 
-	public record MembershipDto(UUID id, UUID organizationId, UUID userId, MembershipRole role) {}
+	public record MembershipDto(UUID id, UUID organizationId, UUID userId, String role) {}
 }

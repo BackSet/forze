@@ -36,10 +36,12 @@
 ### `module.budgeting`
 
 Paquetes: `domain.<area>` (entidades + enums + invariantes), `infrastructure` (repositories Spring Data + TenantContext), `api` y `application` (servicios de cálculo, control de acceso y APIs REST).
-Implementadas todas las capas api/application por área. FKs desacopladas; integridad en BD. Migraciones `V2..V12`.
+Implementadas todas las capas api/application por área. FKs desacopladas; integridad en BD. Migraciones `V2..V13` (`V13` = RBAC).
 
-- Domain `admin`: `Organization` (`budgeting_organizations`), `UnitOfMeasure` (`budgeting_units_of_measure`),
-  `Category` (`budgeting_categories`), `TaxConfig` (`budgeting_tax_configs`).
+- Domain `admin`: `Organization` (`budgeting_organizations`), `Membership` (`budgeting_memberships`, rol como
+  codigo string), `Role` (`budgeting_roles`, sistema/global o custom por org; `all_permissions` para ADMINISTRADOR),
+  `Permission` (`budgeting_permissions`), mapeo `budgeting_role_permissions`; `UnitOfMeasure`
+  (`budgeting_units_of_measure`), `Category` (`budgeting_categories`), `TaxConfig` (`budgeting_tax_configs`).
 - Domain `catalog`: `Insumo` (`budgeting_insumos`), `RubroMaestro` (`budgeting_rubros_maestros`),
   `ApuMaestro` (`budgeting_apu_maestros`), `ApuComponent` (`budgeting_apu_components`);
   enums `CatalogStatus`, `InsumoType`, `ApuStatus`, `ComponentSection`; join `budgeting_rubro_relations`.
@@ -83,7 +85,9 @@ Implementadas todas las capas api/application por área. FKs desacopladas; integ
 - Roles -> permisos: `ADMINISTRADOR` (todos), `PRESUPUESTISTA` (proyectos/presupuestos/catalogos/escenarios/
   documentos), `APROBADOR` (lectura + aprobar/observar/rechazar), `COMPRAS` (catalogos/proveedores/cotizaciones).
 - API por area (REST, DTOs, validacion, sin exponer entidades JPA):
-  `admin` (`OrganizationController`, `MembershipController`, `UserManagementController`, `CatalogConfigController`),
+  `admin` (`OrganizationController`, `MembershipController` con proteccion de ultimo admin, `UserManagementController`,
+  `CatalogConfigController`, `RoleController` -> `GET/POST/PUT/DELETE /api/roles` + `GET /api/permissions`,
+  `AccessController` -> `GET /api/me/access` con rol y permisos efectivos),
   `project` (`ClientController`, `ProjectController`), `catalog` (`CatalogController`),
   `supplier` (`SupplierController`), `budget` (`BudgetController`), `scenario` (`ScenarioController`),
   `approval` (`ApprovalController`), `document` (`BudgetDocumentController`), `audit` (`AuditController`).
@@ -126,14 +130,18 @@ Implementadas todas las capas api/application por área. FKs desacopladas; integ
   y `onResponse` (sintetiza cuerpo JSON para respuestas de error vacias -> errores HTTP siempre disparan `onError`).
 - `lib/api/errors.ts`: `normalizeApiError` (a `ApiError`) y `apiErrorMessage(error, fallback)`.
 - `lib/auth/auth-api.ts`: login, refresh single-flight, `/me`, logout.
-- `lib/auth/session-store.ts`: Zustand session/preferencias.
+- `lib/auth/session-store.ts`: Zustand session/preferencias (incluye `role` y `permissions` efectivos de la org activa).
+- `lib/auth/permissions.ts`: `usePermission`, `useHasAnyPermission`, `useIsAdministrator`, `useEffectiveAccess` (carga `/api/me/access`).
+- `lib/auth/permission-gate.tsx`: `PermissionGate`. App Shell hace gating de menu por permiso, panel 403 e invalidacion de queries al cambiar organizacion.
 - `lib/api/generated/schema.d.ts`: contrato TS de OpenAPI.
 
 ## Tests
 
 - Backend: seguridad, contexto, Modulith, Testcontainers PostgreSQL, document renderer, JWT, token hashing, AuthService.
 - Budgeting: `BudgetVersionInvariantTests` (invariante de inmutabilidad de version aprobada, sin Docker),
-  `BudgetCalculationServiceTests` (calculos APU/version: valores normales, cero, redondeo BigDecimal; sin Docker) y
+  `BudgetCalculationServiceTests` (calculos APU/version: valores normales, cero, redondeo BigDecimal; sin Docker),
+  `MembershipServiceTests` (proteccion de ultimo admin: no degradar ni eliminar; rol desconocido; sin Docker),
+  `SecurityServiceTests` (ADMINISTRADOR concede todos incl. nuevos; rol normal solo mapeados; custom > sistema; sin Docker) y
   `BudgetingPersistenceTests` (Testcontainers: migraciones + `validate`, precision numerica, unique por
   organizacion, FK `RESTRICT`, inmutabilidad de snapshot ante cambio de catalogo, cascade del arbol de
   version, bloqueo optimista en `BudgetVersion`). Los Testcontainers se omiten sin Docker.

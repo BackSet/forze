@@ -75,6 +75,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/roles/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update a custom role's name and permissions. */
+        put: operations["updateRole"];
+        post?: never;
+        /** Delete a custom role. */
+        delete: operations["deleteRole"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/projects/{id}": {
         parameters: {
             query?: never;
@@ -370,6 +388,24 @@ export interface paths {
         put?: never;
         /** Create a new rubro. */
         post: operations["createRubro"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/roles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List system and custom roles for the active organization. */
+        get: operations["listRoles"];
+        put?: never;
+        /** Create a custom role in the active organization. */
+        post: operations["createRole"];
         delete?: never;
         options?: never;
         head?: never;
@@ -857,6 +893,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/permissions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List all registered permissions. */
+        get: operations["listPermissions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/me/access": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Current user's role and effective permissions in the active organization. */
+        get: operations["access"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/budget-versions/{id}": {
         parameters: {
             query?: never;
@@ -1031,6 +1101,19 @@ export interface components {
             /** Format: uuid */
             baseApuId?: string;
         };
+        UpdateRoleRequest: {
+            name?: string;
+            permissions?: string[];
+        };
+        RoleDto: {
+            /** Format: uuid */
+            id?: string;
+            code?: string;
+            name?: string;
+            system?: boolean;
+            allPermissions?: boolean;
+            permissions?: string[];
+        };
         CreateProjectRequest: {
             code: string;
             name: string;
@@ -1075,8 +1158,7 @@ export interface components {
             status?: string;
         };
         UpdateMemberRoleRequest: {
-            /** @enum {string} */
-            role: "ADMINISTRADOR" | "PRESUPUESTISTA" | "APROBADOR" | "COMPRAS";
+            role: string;
         };
         MembershipDto: {
             /** Format: uuid */
@@ -1085,8 +1167,7 @@ export interface components {
             organizationId?: string;
             /** Format: uuid */
             userId?: string;
-            /** @enum {string} */
-            role?: "ADMINISTRADOR" | "PRESUPUESTISTA" | "APROBADOR" | "COMPRAS";
+            role?: string;
         };
         AddComponentRequest: {
             section: string;
@@ -1291,6 +1372,11 @@ export interface components {
             email?: string;
             enabled?: boolean;
         };
+        SaveRoleRequest: {
+            code: string;
+            name: string;
+            permissions?: string[];
+        };
         CreateQuotationItemRequest: {
             /** Format: uuid */
             insumoId: string;
@@ -1363,8 +1449,7 @@ export interface components {
         };
         AddMemberRequest: {
             usernameOrEmail: string;
-            /** @enum {string} */
-            role: "ADMINISTRADOR" | "PRESUPUESTISTA" | "APROBADOR" | "COMPRAS";
+            role: string;
         };
         CreateVersionRequest: {
             /** Format: uuid */
@@ -1507,6 +1592,11 @@ export interface components {
             /** Format: date */
             validUntil?: string;
         };
+        PermissionDto: {
+            code?: string;
+            area?: string;
+            description?: string;
+        };
         MembershipDetails: {
             /** Format: uuid */
             id?: string;
@@ -1516,8 +1606,13 @@ export interface components {
             userId?: string;
             username?: string;
             email?: string;
-            /** @enum {string} */
-            role?: "ADMINISTRADOR" | "PRESUPUESTISTA" | "APROBADOR" | "COMPRAS";
+            role?: string;
+        };
+        AccessDto: {
+            /** Format: uuid */
+            organizationId?: string;
+            role?: string;
+            permissions?: string[];
         };
         DocumentDto: {
             /** Format: uuid */
@@ -1704,6 +1799,52 @@ export interface operations {
         };
     };
     archiveRubro: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    updateRole: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateRoleRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["RoleDto"];
+                };
+            };
+        };
+    };
+    deleteRole: {
         parameters: {
             query?: never;
             header?: never;
@@ -2393,6 +2534,50 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["RubroMaestroDto"];
+                };
+            };
+        };
+    };
+    listRoles: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["RoleDto"][];
+                };
+            };
+        };
+    };
+    createRole: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveRoleRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["RoleDto"];
                 };
             };
         };
@@ -3505,6 +3690,46 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["PriceHistoryDto"][];
+                };
+            };
+        };
+    };
+    listPermissions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PermissionDto"][];
+                };
+            };
+        };
+    };
+    access: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AccessDto"];
                 };
             };
         };

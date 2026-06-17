@@ -28,7 +28,7 @@ public class OrganizationService {
 		Organization organization = new Organization(orgId, name);
 		organizationRepository.save(organization);
 
-		Membership membership = new Membership(UUID.randomUUID(), orgId, creatorUserId, MembershipRole.ADMINISTRADOR);
+		Membership membership = new Membership(UUID.randomUUID(), orgId, creatorUserId, MembershipRole.ADMINISTRADOR.name());
 		membershipRepository.save(membership);
 
 		return organization;
