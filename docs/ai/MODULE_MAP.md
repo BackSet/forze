@@ -75,6 +75,11 @@ Implementadas todas las capas api/application por área. FKs desacopladas; integ
   proveedores, aprobaciones, documentos, administracion, auditoria), `SecurityService` (resuelve organizacion
   activa via cabecera `X-Organization-Id`, valida membresia y permisos por rol), `TenantFilter` +
   `shared.TenantContext` (aislamiento por organizacion; los servicios filtran repositories por org activa).
+- Bootstrap de organizacion: `POST /api/organizations` es el unico endpoint de negocio que NO exige
+  `X-Organization-Id` (lo exime `TenantFilter`), para permitir crear la primera organizacion sin tenant.
+  Requiere usuario autenticado (bearer), crea la `Organization` y registra al creador como `Membership`
+  `ADMINISTRADOR` en una transaccion, y responde `OrganizationDto { id, name }`. CSRF esta deshabilitado
+  (API stateless bearer; ver PROJECT_CONTEXT), por lo que no requiere token CSRF.
 - Roles -> permisos: `ADMINISTRADOR` (todos), `PRESUPUESTISTA` (proyectos/presupuestos/catalogos/escenarios/
   documentos), `APROBADOR` (lectura + aprobar/observar/rechazar), `COMPRAS` (catalogos/proveedores/cotizaciones).
 - API por area (REST, DTOs, validacion, sin exponer entidades JPA):
@@ -117,8 +122,9 @@ Implementadas todas las capas api/application por área. FKs desacopladas; integ
 
 ### Auth/API
 
-- `lib/api/client.ts`: openapi-fetch + openapi-react-query.
-- `lib/api/errors.ts`: normalizacion de errores.
+- `lib/api/client.ts`: openapi-fetch + openapi-react-query; middleware `onRequest` (bearer + `X-Organization-Id`)
+  y `onResponse` (sintetiza cuerpo JSON para respuestas de error vacias -> errores HTTP siempre disparan `onError`).
+- `lib/api/errors.ts`: `normalizeApiError` (a `ApiError`) y `apiErrorMessage(error, fallback)`.
 - `lib/auth/auth-api.ts`: login, refresh single-flight, `/me`, logout.
 - `lib/auth/session-store.ts`: Zustand session/preferencias.
 - `lib/api/generated/schema.d.ts`: contrato TS de OpenAPI.

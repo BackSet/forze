@@ -64,10 +64,19 @@ export function AppPage() {
 
   // Mutations
   const createOrgMutation = api.useMutation('post', '/api/organizations', {
+    // Creating a resource must never be retried automatically: one click = one POST.
+    retry: false,
     onSuccess: (res) => {
+      // Enforce the success contract explicitly: a 2xx without id/name is a
+      // contract violation, not a success. Do not activate an organization
+      // nor show a success toast for an empty/invalid response.
+      if (!res || !res.id || !res.name) {
+        toast.error('La organización no se creó correctamente (respuesta inválida del servidor).')
+        return
+      }
       toast.success(`Organización "${res.name}" creada con éxito`)
       queryClient.invalidateQueries({ queryKey: ['get', '/api/organizations'] })
-      setActiveOrgId(res.id!)
+      setActiveOrgId(res.id)
       orgForm.reset()
     },
     onError: (err) => {

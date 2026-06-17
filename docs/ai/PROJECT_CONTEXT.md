@@ -67,7 +67,7 @@
 - Access token: JWT corto con issuer, subject, jti, issued-at, expiration y claim minimo `username`.
 - Refresh token: aleatorio, guardado solo como hash SHA-256, con familia/sesion, expiracion, revocacion y rotacion.
 - Refresh cookie: HttpOnly, path `/api/auth`, SameSite configurable, Secure en prod.
-- CSRF: habilitado con cookie token repository; `/api/auth/**` queda ignorado explicitamente porque el flujo es stateless y usa SameSite/HttpOnly refresh cookie.
+- CSRF: deshabilitado deliberadamente. La API es stateless y se autoriza solo via el header `Authorization: Bearer`, que el navegador nunca adjunta automaticamente en peticiones cross-site, por lo que CSRF (ataque de credencial ambiental) no aplica al API. La unica cookie es el refresh token (HttpOnly, path `/api/auth`, SameSite Lax/Strict), de modo que ninguna operacion sensible puede autorizarse por cookie cross-site. Ademas el SPA corre cross-origin (5173 -> 8080), donde un double-submit cookie CSRF no seria legible por el cliente. Documentado en `SecurityConfiguration`.
 - Bootstrap admin: solo perfil `dev`, idempotente, password obligatorio por entorno.
 
 ## Frontend
@@ -79,7 +79,8 @@
 - API:
   - `openapi-fetch` con credentials.
   - `openapi-react-query` disponible como cliente principal para estado remoto.
-  - Middleware de Authorization.
+  - Middleware de Authorization y, cuando hay organizacion activa, `X-Organization-Id`.
+  - Middleware `onResponse` que normaliza errores: toda respuesta no-2xx con cuerpo vacio (p. ej. un 401/403 sin payload) recibe un cuerpo JSON `{ status, detail }` para que `openapi-fetch` pueble `error` y la mutacion/query rechace; nunca un `onSuccess(undefined)`.
   - Timeout por request.
   - Refresh automatico single-flight.
   - Reintento maximo una vez tras 401 en `/me`.

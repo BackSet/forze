@@ -21,7 +21,6 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -36,9 +35,16 @@ class SecurityConfiguration {
 	@Bean
 	SecurityFilterChain securityFilterChain(HttpSecurity http, ApplicationContext applicationContext) throws Exception {
 		HttpSecurity configured = http
-				.csrf((csrf) -> csrf
-						.csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
-						.ignoringRequestMatchers("/api/auth/**", "/v3/api-docs", "/v3/api-docs/**"))
+				// CSRF protection is disabled deliberately for this stateless API.
+				// Authorization is performed exclusively via the `Authorization: Bearer`
+				// JWT header, which browsers never attach automatically on cross-site
+				// requests, so CSRF (an ambient-credential attack) does not apply to the
+				// API surface. The only cookie credential is the refresh token, which is
+				// HttpOnly, path-scoped to `/api/auth` and SameSite=Lax(dev)/Strict(prod),
+				// so cross-site requests cannot carry it. The SPA also runs cross-origin
+				// (5173 -> 8080), where a double-submit CSRF cookie could not be read by
+				// the client. See docs/ai/PROJECT_CONTEXT.md (CSRF/authentication strategy).
+				.csrf(AbstractHttpConfigurer::disable)
 				.cors(Customizer.withDefaults())
 				.sessionManagement((sessions) -> sessions.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 				.headers((headers) -> headers

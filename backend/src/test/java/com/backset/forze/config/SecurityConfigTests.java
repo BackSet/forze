@@ -1,5 +1,6 @@
 package com.backset.forze.config;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -8,6 +9,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.csrf.CsrfFilter;
 import org.springframework.test.web.servlet.MockMvc;
 
 @SpringBootTest(
@@ -39,5 +42,15 @@ class SecurityConfigTests {
 	void deniesUnknownEndpointsByDefault() throws Exception {
 		mockMvc.perform(get("/internal/not-defined"))
 				.andExpect(status().isForbidden());
+	}
+
+	@Test
+	void csrfProtectionIsDisabledForStatelessApi(@Autowired SecurityFilterChain securityFilterChain) {
+		// The API is stateless and authenticated via the Authorization bearer header,
+		// so CSRF is disabled deliberately. This guards against CSRF being re-enabled
+		// (which would 403 mutating bearer requests such as POST /api/organizations).
+		boolean hasCsrfFilter = securityFilterChain.getFilters().stream()
+				.anyMatch(CsrfFilter.class::isInstance);
+		assertThat(hasCsrfFilter).isFalse();
 	}
 }

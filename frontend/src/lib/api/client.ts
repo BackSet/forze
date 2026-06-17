@@ -22,6 +22,32 @@ fetchClient.use({
     }
     return request
   },
+  // Guarantee that any non-2xx response carries a body so openapi-fetch
+  // populates `error` (and openapi-react-query rejects). Without this, a
+  // backend error with an empty body (e.g. a Spring 401/403 with no payload)
+  // would surface as `{ data: undefined, error: undefined }`, which the
+  // mutation would treat as success and run `onSuccess(undefined)`.
+  async onResponse({ response }) {
+    if (response.ok) {
+      return undefined
+    }
+    const body = await response.clone().text()
+    if (body.trim().length > 0) {
+      // Real payload present (e.g. our RFC 7807 `{ detail }`): leave untouched.
+      return undefined
+    }
+    const detail =
+      response.status === 401
+        ? 'Sesión no válida o expirada.'
+        : response.status === 403
+          ? 'No tiene permisos para realizar esta acción.'
+          : 'No se pudo completar la solicitud.'
+    return new Response(JSON.stringify({ status: response.status, detail }), {
+      status: response.status,
+      statusText: response.statusText,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  },
 })
 
 export const api = createQueryClient(fetchClient)
