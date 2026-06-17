@@ -22,7 +22,14 @@ class BudgetCalculationServiceTests {
 	private final ApuCalculationService apuCalc = new ApuCalculationService();
 	private final BudgetItemCalculationService itemCalc = new BudgetItemCalculationService();
 	private final ViabilityEvaluationService viabilityEval = new ViabilityEvaluationService();
-	private final AlertGenerationService alertGen = new AlertGenerationService();
+	private final AlertGenerationService alertGen = new AlertGenerationService(
+			mock(com.backset.forze.module.budgeting.infrastructure.ItemApuRepository.class),
+			mock(com.backset.forze.module.budgeting.infrastructure.ItemApuComponentRepository.class),
+			mock(com.backset.forze.module.budgeting.infrastructure.PriceHistoryRepository.class),
+			mock(com.backset.forze.module.budgeting.infrastructure.BudgetRiskRepository.class),
+			mock(com.backset.forze.module.budgeting.infrastructure.MeasurementRepository.class),
+			mock(com.backset.forze.module.budgeting.infrastructure.ApuMaestroRepository.class)
+	);
 
 	@Test
 	void testApuComponentLineTotal() {
@@ -134,12 +141,13 @@ class BudgetCalculationServiceTests {
 		when(item.validationStatus()).thenReturn(ItemValidationStatus.INCOMPLETO);
 
 		List<AlertGenerationService.BudgetAlert> alerts = alertGen.generateAlerts(version, List.of(item), new BigDecimal("0.1000"));
-		assertThat(alerts).hasSize(5);
+		assertThat(alerts).hasSize(6);
 
 		assertThat(alerts.stream().anyMatch(a -> a.message().contains("costo interno es mayor"))).isTrue();
 		assertThat(alerts.stream().anyMatch(a -> a.message().contains("supera el monto objetivo"))).isTrue();
 		assertThat(alerts.stream().anyMatch(a -> a.message().contains("margen es inferior"))).isTrue();
 		assertThat(alerts.stream().anyMatch(a -> a.message().contains("cantidad cero"))).isTrue();
 		assertThat(alerts.stream().anyMatch(a -> a.message().contains("esta incompleto"))).isTrue();
+		assertThat(alerts.stream().anyMatch(a -> a.message().contains("no tiene un APU configurado"))).isTrue();
 	}
 }

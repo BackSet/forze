@@ -1,7 +1,9 @@
 package com.backset.forze.module.budgeting.budget.application;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -26,6 +28,12 @@ import com.backset.forze.module.budgeting.infrastructure.ChapterRepository;
 import com.backset.forze.module.budgeting.infrastructure.ItemApuComponentRepository;
 import com.backset.forze.module.budgeting.infrastructure.ItemApuRepository;
 import com.backset.forze.module.budgeting.infrastructure.MeasurementRepository;
+import com.backset.forze.module.budgeting.domain.budget.BudgetRisk;
+import com.backset.forze.module.budgeting.domain.supplier.PriceHistory;
+import com.backset.forze.module.budgeting.domain.supplier.PriceStatus;
+import com.backset.forze.module.budgeting.infrastructure.BudgetRiskRepository;
+import com.backset.forze.module.budgeting.infrastructure.PriceHistoryRepository;
+import com.backset.forze.module.budgeting.audit.application.AuditService;
 import com.backset.forze.shared.api.ApiException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -44,6 +52,11 @@ public class BudgetService {
 
 	private final CatalogService catalogService;
 	private final BudgetVersionCalculationService calculationService;
+	private final BudgetRiskRepository budgetRiskRepository;
+	private final PriceHistoryRepository priceHistoryRepository;
+	private final ApuCalculationService apuCalculationService;
+	private final AuditService auditService;
+	private final AlertGenerationService alertGenerationService;
 
 	public BudgetService(
 			BudgetRepository budgetRepository,
@@ -54,7 +67,12 @@ public class BudgetService {
 			ItemApuComponentRepository itemApuComponentRepository,
 			MeasurementRepository measurementRepository,
 			CatalogService catalogService,
-			BudgetVersionCalculationService calculationService
+			BudgetVersionCalculationService calculationService,
+			BudgetRiskRepository budgetRiskRepository,
+			PriceHistoryRepository priceHistoryRepository,
+			ApuCalculationService apuCalculationService,
+			AuditService auditService,
+			AlertGenerationService alertGenerationService
 	) {
 		this.budgetRepository = budgetRepository;
 		this.versionRepository = versionRepository;
@@ -65,6 +83,11 @@ public class BudgetService {
 		this.measurementRepository = measurementRepository;
 		this.catalogService = catalogService;
 		this.calculationService = calculationService;
+		this.budgetRiskRepository = budgetRiskRepository;
+		this.priceHistoryRepository = priceHistoryRepository;
+		this.apuCalculationService = apuCalculationService;
+		this.auditService = auditService;
+		this.alertGenerationService = alertGenerationService;
 	}
 
 	// Budgets
@@ -329,6 +352,294 @@ public class BudgetService {
 		measurementRepository.delete(measurement);
 	}
 
+	// Risk management
+	@Transactional(readOnly = true)
+	public List<BudgetRisk> getRisks(UUID versionId) {
+		return budgetRiskRepository.findByBudgetVersionId(versionId);
+	}
+
+	@Transactional(readOnly = true)
+	public BudgetRisk getRisk(UUID orgId, UUID riskId) {
+		return budgetRiskRepository.findById(riskId)
+				.filter(r -> r.organizationId().equals(orgId))
+				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Risk not found"));
+	}
+
+	@Transactional
+	public BudgetRisk addRisk(UUID orgId, UUID versionId, CreateRiskCmd cmd, UUID userId) {
+		BudgetVersion version = getVersion(versionId);
+		if (version.isApproved()) {
+			throw new ApiException(HttpStatus.BAD_REQUEST, "Cannot add risks to an approved budget version");
+		}
+
+		UUID id = UUID.randomUUID();
+		BudgetRisk risk = new BudgetRisk(id, orgId, versionId, cmd.description(), cmd.probability(), cmd.impact());
+		risk.updateDetails(cmd.description(), cmd.probability(), cmd.impact(), cmd.assignedTo(), cmd.mitigation(), cmd.mitigated());
+		BudgetRisk saved = budgetRiskRepository.save(risk);
+
+		auditService.log(orgId, userId, "CREATE", "BudgetRisk", id, null, cmd.description(), "Risk added", null);
+
+		return saved;
+	}
+
+	@Transactional
+	public BudgetRisk updateRisk(UUID orgId, UUID riskId, CreateRiskCmd cmd, UUID userId) {
+		BudgetRisk risk = getRisk(orgId, riskId);
+		BudgetVersion version = getVersion(risk.budgetVersionId());
+		if (version.isApproved()) {
+			throw new ApiException(HttpStatus.BAD_REQUEST, "Cannot update risks on an approved budget version");
+		}
+
+		String oldValue = risk.description() + " (Prob: " + risk.probability() + ", Imp: " + risk.impact() + ")";
+		risk.updateDetails(cmd.description(), cmd.probability(), cmd.impact(), cmd.assignedTo(), cmd.mitigation(), cmd.mitigated());
+		BudgetRisk saved = budgetRiskRepository.save(risk);
+
+		String newValue = cmd.description() + " (Prob: " + cmd.probability() + ", Imp: " + cmd.impact() + ")";
+		auditService.log(orgId, userId, "UPDATE", "BudgetRisk", riskId, oldValue, newValue, "Risk updated", null);
+
+		return saved;
+	}
+
+	@Transactional
+	public void deleteRisk(UUID orgId, UUID riskId, UUID userId) {
+		BudgetRisk risk = getRisk(orgId, riskId);
+		BudgetVersion version = getVersion(risk.budgetVersionId());
+		if (version.isApproved()) {
+			throw new ApiException(HttpStatus.BAD_REQUEST, "Cannot delete risks from an approved budget version");
+		}
+
+		budgetRiskRepository.delete(risk);
+		auditService.log(orgId, userId, "DELETE", "BudgetRisk", riskId, risk.description(), null, "Risk deleted", null);
+	}
+
+	// Price application
+	@Transactional(readOnly = true)
+	public PriceUpdatePreviewDto getPriceUpdatePreview(UUID orgId, UUID versionId) {
+		BudgetVersion version = getVersion(versionId);
+		List<BudgetItem> items = getItems(versionId);
+
+		List<PriceChangeDto> changes = new ArrayList<>();
+		BigDecimal proposedVersionTotalCost = BigDecimal.ZERO;
+
+		for (BudgetItem item : items) {
+			BigDecimal itemProposedCost = item.unitCost() != null ? item.unitCost() : BigDecimal.ZERO;
+			ItemApu apu = itemApuRepository.findByBudgetItemId(item.id()).orElse(null);
+			if (apu != null) {
+				List<ItemApuComponent> components = itemApuComponentRepository.findByItemApuIdOrderByPosition(apu.id());
+				BigDecimal apuYield = apu.yield() != null && apu.yield().compareTo(BigDecimal.ZERO) > 0 ? apu.yield() : BigDecimal.ONE;
+
+				BigDecimal apuProposedUnitCost = BigDecimal.ZERO;
+				for (ItemApuComponent comp : components) {
+					BigDecimal currentLineTotal = comp.lineTotal() != null ? comp.lineTotal() : BigDecimal.ZERO;
+					BigDecimal proposedLineTotal = currentLineTotal;
+
+					if (!comp.priceLocked() && comp.sourceInsumoId() != null) {
+						PriceHistory latestPrice = priceHistoryRepository.findByInsumoIdOrderByPriceDateDesc(comp.sourceInsumoId()).stream()
+								.filter(ph -> ph.organizationId().equals(orgId) && ph.status() == PriceStatus.VIGENTE)
+								.findFirst()
+								.orElse(null);
+
+						if (latestPrice != null && latestPrice.price().compareTo(comp.unitPrice()) != 0) {
+							ItemApuComponent tempComp = new ItemApuComponent(comp.id(), comp.itemApuId(), comp.section(), comp.unitId(), comp.quantity(), latestPrice.price(), comp.position());
+							tempComp.describe(comp.sourceInsumoId(), comp.description(), comp.yield(), comp.wasteFactor(), comp.priceSource());
+							proposedLineTotal = apuCalculationService.calculateComponentLineTotal(tempComp, apuYield);
+
+							BigDecimal priceDiff = latestPrice.price().subtract(comp.unitPrice());
+							BigDecimal lineDiff = proposedLineTotal.subtract(currentLineTotal);
+
+							var insumo = catalogService.getInsumo(orgId, comp.sourceInsumoId());
+
+							changes.add(new PriceChangeDto(
+									comp.id(),
+									comp.sourceInsumoId(),
+									insumo.code(),
+									insumo.name(),
+									comp.description(),
+									comp.unitPrice(),
+									latestPrice.price(),
+									priceDiff,
+									currentLineTotal,
+									proposedLineTotal,
+									lineDiff
+							));
+						}
+					}
+					apuProposedUnitCost = apuProposedUnitCost.add(proposedLineTotal);
+				}
+				itemProposedCost = apuProposedUnitCost.setScale(4, RoundingMode.HALF_UP);
+			}
+
+			BigDecimal proposedItemCost = item.quantity().multiply(itemProposedCost).setScale(2, RoundingMode.HALF_UP);
+			proposedVersionTotalCost = proposedVersionTotalCost.add(proposedItemCost);
+		}
+
+		BigDecimal currentTotal = version.totalCost() != null ? version.totalCost() : BigDecimal.ZERO;
+		BigDecimal difference = proposedVersionTotalCost.subtract(currentTotal);
+
+		return new PriceUpdatePreviewDto(changes, currentTotal, proposedVersionTotalCost, difference);
+	}
+
+	@Transactional
+	public void applyNewPrices(UUID orgId, UUID versionId, UUID userId) {
+		BudgetVersion version = getVersion(versionId);
+		if (version.isApproved()) {
+			throw new ApiException(HttpStatus.BAD_REQUEST, "Cannot update prices on an approved budget version");
+		}
+
+		List<BudgetItem> items = getItems(versionId);
+		int appliedCount = 0;
+
+		for (BudgetItem item : items) {
+			ItemApu apu = itemApuRepository.findByBudgetItemId(item.id()).orElse(null);
+			if (apu != null) {
+				List<ItemApuComponent> components = itemApuComponentRepository.findByItemApuIdOrderByPosition(apu.id());
+				for (ItemApuComponent comp : components) {
+					if (!comp.priceLocked() && comp.sourceInsumoId() != null) {
+						PriceHistory latestPrice = priceHistoryRepository.findByInsumoIdOrderByPriceDateDesc(comp.sourceInsumoId()).stream()
+								.filter(ph -> ph.organizationId().equals(orgId) && ph.status() == PriceStatus.VIGENTE)
+								.findFirst()
+								.orElse(null);
+
+						if (latestPrice != null && latestPrice.price().compareTo(comp.unitPrice()) != 0) {
+							comp.changeUnitPrice(latestPrice.price(), "Historial: " + latestPrice.id());
+							itemApuComponentRepository.save(comp);
+							appliedCount++;
+						}
+					}
+				}
+			}
+		}
+
+		// Recalculate version to apply changes to totals
+		calculationService.calculateVersion(orgId, versionId);
+
+		auditService.log(orgId, userId, "APPLY_PRICES", "BudgetVersion", versionId, null, "Applied new prices to " + appliedCount + " components", "Applied newest active prices", null);
+	}
+
+	// Quality and Alerts API
+	@Transactional(readOnly = true)
+	public QualityReportDto getQualityReport(UUID versionId) {
+		BudgetVersion version = getVersion(versionId);
+		List<BudgetItem> items = getItems(versionId);
+
+		// Calculate quality score
+		int score = alertGenerationService.calculateQualityScore(version, items);
+
+		// Generate check list details
+		List<QualityCheckDto> checks = new ArrayList<>();
+		UUID orgIdActive = com.backset.forze.shared.TenantContext.getTenantId();
+		LocalDate today = LocalDate.now();
+
+		// 1. APU check
+		int noApuCount = 0;
+		for (BudgetItem item : items) {
+			ItemApu apu = itemApuRepository.findByBudgetItemId(item.id()).orElse(null);
+			if (apu == null) {
+				noApuCount++;
+			} else {
+				List<ItemApuComponent> components = itemApuComponentRepository.findByItemApuIdOrderByPosition(apu.id());
+				if (components.isEmpty()) {
+					noApuCount++;
+				}
+			}
+		}
+		checks.add(new QualityCheckDto("Rubros con APU completo", noApuCount == 0,
+				noApuCount == 0 ? "Todos los rubros tienen APU configurado." : noApuCount + " rubro(s) sin APU o sin componentes.",
+				Math.min(noApuCount * 10, 40)));
+
+		// 2. Expired prices check
+		int expiredPricesCount = 0;
+		for (BudgetItem item : items) {
+			ItemApu apu = itemApuRepository.findByBudgetItemId(item.id()).orElse(null);
+			if (apu != null) {
+				List<ItemApuComponent> components = itemApuComponentRepository.findByItemApuIdOrderByPosition(apu.id());
+				for (ItemApuComponent comp : components) {
+					if (comp.sourceInsumoId() != null && orgIdActive != null) {
+						PriceHistory latestPrice = priceHistoryRepository.findByInsumoIdOrderByPriceDateDesc(comp.sourceInsumoId()).stream()
+								.filter(ph -> ph.organizationId().equals(orgIdActive) && ph.status() == PriceStatus.VIGENTE)
+								.findFirst()
+								.orElse(null);
+						if (latestPrice != null && (latestPrice.status() == PriceStatus.VENCIDO || (latestPrice.validUntil() != null && latestPrice.validUntil().isBefore(today)))) {
+							expiredPricesCount++;
+						}
+					}
+				}
+			}
+		}
+		checks.add(new QualityCheckDto("Vigencia de precios", expiredPricesCount == 0,
+				expiredPricesCount == 0 ? "Todos los precios de insumos vigentes." : expiredPricesCount + " precio(s) vencido(s).",
+				Math.min(expiredPricesCount * 5, 20)));
+
+		// 3. Price source check
+		int noSourceCount = 0;
+		for (BudgetItem item : items) {
+			ItemApu apu = itemApuRepository.findByBudgetItemId(item.id()).orElse(null);
+			if (apu != null) {
+				List<ItemApuComponent> components = itemApuComponentRepository.findByItemApuIdOrderByPosition(apu.id());
+				for (ItemApuComponent comp : components) {
+					if (comp.priceSource() == null || comp.priceSource().isBlank()) {
+						noSourceCount++;
+					}
+				}
+			}
+		}
+		checks.add(new QualityCheckDto("Fuentes de precios registradas", noSourceCount == 0,
+				noSourceCount == 0 ? "Todos los componentes tienen fuente de precio." : noSourceCount + " componente(s) sin fuente registrada.",
+				Math.min(noSourceCount * 5, 20)));
+
+		// 4. Measurements check
+		int noMeasurementCount = 0;
+		for (BudgetItem item : items) {
+			if (item.quantity() != null && item.quantity().compareTo(BigDecimal.ZERO) > 0) {
+				List<Measurement> measurements = measurementRepository.findByBudgetItemIdOrderByPosition(item.id());
+				if (measurements.isEmpty()) {
+					noMeasurementCount++;
+				} else {
+					BigDecimal sum = measurements.stream()
+							.map(m -> m.result() != null ? m.result() : BigDecimal.ZERO)
+							.reduce(BigDecimal.ZERO, BigDecimal::add);
+					if (sum.subtract(item.quantity()).abs().compareTo(new BigDecimal("0.01")) > 0) {
+						noMeasurementCount++;
+					}
+				}
+			}
+		}
+		checks.add(new QualityCheckDto("Mediciones detalladas", noMeasurementCount == 0,
+				noMeasurementCount == 0 ? "Todas las cantidades tienen mediciones que coinciden." : noMeasurementCount + " rubro(s) con mediciones faltantes o desalineadas.",
+				Math.min(noMeasurementCount * 5, 20)));
+
+		// 5. APU yields check
+		int unverifiedYieldCount = 0;
+		for (BudgetItem item : items) {
+			ItemApu apu = itemApuRepository.findByBudgetItemId(item.id()).orElse(null);
+			if (apu != null) {
+				if (apu.yield() == null || apu.yield().compareTo(BigDecimal.ZERO) <= 0) {
+					unverifiedYieldCount++;
+				}
+			}
+		}
+		checks.add(new QualityCheckDto("Rendimientos de APU verificados", unverifiedYieldCount == 0,
+				unverifiedYieldCount == 0 ? "Todos los rendimientos son mayores a cero." : unverifiedYieldCount + " rubro(s) con rendimiento cero o nulo.",
+				Math.min(unverifiedYieldCount * 5, 20)));
+
+		// 6. Mitigated risks check
+		List<BudgetRisk> risks = budgetRiskRepository.findByBudgetVersionId(versionId);
+		int unmitigatedRisks = 0;
+		for (BudgetRisk risk : risks) {
+			if (!risk.mitigated() || risk.mitigation() == null || risk.mitigation().isBlank()) {
+				unmitigatedRisks++;
+			}
+		}
+		checks.add(new QualityCheckDto("Riesgos mitigados", unmitigatedRisks == 0,
+				unmitigatedRisks == 0 ? "Todos los riesgos registrados están mitigados." : unmitigatedRisks + " riesgo(s) sin mitigar.",
+				Math.min(unmitigatedRisks * 10, 30)));
+
+		// Generate budget alerts
+		List<AlertGenerationService.BudgetAlert> alerts = alertGenerationService.generateAlerts(version, items, BigDecimal.ZERO);
+
+		return new QualityReportDto(score, checks, alerts);
+	}
+
 	// CMD Records
 	public record CreateBudgetCmd(String code, String name, String currencyCode, UUID userId) {}
 
@@ -361,5 +672,48 @@ public class BudgetService {
 			BigDecimal factor,
 			String formula,
 			String notes
+	) {}
+
+	public record CreateRiskCmd(
+			String description,
+			BigDecimal probability,
+			BigDecimal impact,
+			String assignedTo,
+			String mitigation,
+			boolean mitigated
+	) {}
+
+	public record PriceUpdatePreviewDto(
+			List<PriceChangeDto> changes,
+			BigDecimal currentTotalCost,
+			BigDecimal proposedTotalCost,
+			BigDecimal difference
+	) {}
+
+	public record PriceChangeDto(
+			UUID componentId,
+			UUID insumoId,
+			String insumoCode,
+			String insumoName,
+			String componentDescription,
+			BigDecimal oldPrice,
+			BigDecimal newPrice,
+			BigDecimal difference,
+			BigDecimal currentLineTotal,
+			BigDecimal proposedLineTotal,
+			BigDecimal lineTotalDifference
+	) {}
+
+	public record QualityReportDto(
+			int score,
+			List<QualityCheckDto> checks,
+			List<AlertGenerationService.BudgetAlert> alerts
+	) {}
+
+	public record QualityCheckDto(
+			String name,
+			boolean passed,
+			String description,
+			int penalty
 	) {}
 }

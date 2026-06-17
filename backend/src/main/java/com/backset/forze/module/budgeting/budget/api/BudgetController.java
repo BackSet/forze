@@ -20,9 +20,11 @@ import com.backset.forze.module.budgeting.domain.budget.ItemApu;
 import com.backset.forze.module.budgeting.domain.budget.ItemApuComponent;
 import com.backset.forze.module.budgeting.domain.budget.Measurement;
 import com.backset.forze.module.budgeting.domain.catalog.ComponentSection;
+import com.backset.forze.module.budgeting.domain.budget.BudgetRisk;
 import com.backset.forze.module.identity.infrastructure.UserPrincipal;
 import com.backset.forze.shared.TenantContext;
 import io.swagger.v3.oas.annotations.Operation;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -307,6 +309,131 @@ public class BudgetController {
 		);
 	}
 
+	// Risks
+	@GetMapping("/budget-versions/{versionId}/risks")
+	@Operation(summary = "List all risks for a budget version.")
+	@PreAuthorize("@securityService.hasPermission('PRESUPUESTOS_READ')")
+	public List<RiskDto> getRisks(@PathVariable UUID versionId) {
+		return budgetService.getRisks(versionId).stream()
+				.map(this::toDto)
+				.toList();
+	}
+
+	@GetMapping("/budget-risks/{id}")
+	@Operation(summary = "Get budget risk details.")
+	@PreAuthorize("@securityService.hasPermission('PRESUPUESTOS_READ')")
+	public RiskDto getRisk(@PathVariable UUID id) {
+		UUID orgId = TenantContext.getRequiredTenantId();
+		return toDto(budgetService.getRisk(orgId, id));
+	}
+
+	@PostMapping("/budget-versions/{versionId}/risks")
+	@Operation(summary = "Add a new risk to a budget version.")
+	@PreAuthorize("@securityService.hasPermission('PRESUPUESTOS_WRITE')")
+	public RiskDto addRisk(
+			@PathVariable UUID versionId,
+			@Valid @RequestBody CreateRiskRequest request,
+			@AuthenticationPrincipal UserPrincipal principal
+	) {
+		UUID orgId = TenantContext.getRequiredTenantId();
+		BudgetRisk risk = budgetService.addRisk(orgId, versionId, new BudgetService.CreateRiskCmd(
+				request.description(), request.probability(), request.impact(), request.assignedTo(), request.mitigation(), request.mitigated()), principal.id());
+		return toDto(risk);
+	}
+
+	@PutMapping("/budget-risks/{id}")
+	@Operation(summary = "Update an existing budget risk.")
+	@PreAuthorize("@securityService.hasPermission('PRESUPUESTOS_WRITE')")
+	public RiskDto updateRisk(
+			@PathVariable UUID id,
+			@Valid @RequestBody CreateRiskRequest request,
+			@AuthenticationPrincipal UserPrincipal principal
+	) {
+		UUID orgId = TenantContext.getRequiredTenantId();
+		BudgetRisk risk = budgetService.updateRisk(orgId, id, new BudgetService.CreateRiskCmd(
+				request.description(), request.probability(), request.impact(), request.assignedTo(), request.mitigation(), request.mitigated()), principal.id());
+		return toDto(risk);
+	}
+
+	@DeleteMapping("/budget-risks/{id}")
+	@Operation(summary = "Delete a budget risk.")
+	@PreAuthorize("@securityService.hasPermission('PRESUPUESTOS_WRITE')")
+	public void deleteRisk(@PathVariable UUID id, @AuthenticationPrincipal UserPrincipal principal) {
+		UUID orgId = TenantContext.getRequiredTenantId();
+		budgetService.deleteRisk(orgId, id, principal.id());
+	}
+
+	// Price Update / Preview
+	@GetMapping("/budget-versions/{versionId}/price-update-preview")
+	@Operation(summary = "Get preview of applying new prices to budget version components.")
+	@PreAuthorize("@securityService.hasPermission('PRESUPUESTOS_READ')")
+	public PriceUpdatePreviewResponse getPriceUpdatePreview(@PathVariable UUID versionId) {
+		UUID orgId = TenantContext.getRequiredTenantId();
+		BudgetService.PriceUpdatePreviewDto preview = budgetService.getPriceUpdatePreview(orgId, versionId);
+		return toDto(preview);
+	}
+
+	@PostMapping("/budget-versions/{versionId}/apply-new-prices")
+	@Operation(summary = "Apply new prices to budget version components.")
+	@PreAuthorize("@securityService.hasPermission('PRESUPUESTOS_WRITE')")
+	public void applyNewPrices(@PathVariable UUID versionId, @AuthenticationPrincipal UserPrincipal principal) {
+		UUID orgId = TenantContext.getRequiredTenantId();
+		budgetService.applyNewPrices(orgId, versionId, principal.id());
+	}
+
+	// Quality Evaluation
+	@GetMapping("/budget-versions/{versionId}/quality")
+	@Operation(summary = "Get quality evaluation report for a budget version.")
+	@PreAuthorize("@securityService.hasPermission('PRESUPUESTOS_READ')")
+	public QualityReportResponse getQualityReport(@PathVariable UUID versionId) {
+		BudgetService.QualityReportDto report = budgetService.getQualityReport(versionId);
+		return toDto(report);
+	}
+
+	private RiskDto toDto(BudgetRisk r) {
+		return new RiskDto(
+				r.id(),
+				r.organizationId(),
+				r.budgetVersionId(),
+				r.description(),
+				r.probability(),
+				r.impact(),
+				r.expectedAmount(),
+				r.assignedTo(),
+				r.mitigation(),
+				r.mitigated()
+		);
+	}
+
+	private PriceUpdatePreviewResponse toDto(BudgetService.PriceUpdatePreviewDto p) {
+		List<PriceChangeDto> changes = p.changes().stream()
+				.map(c -> new PriceChangeDto(
+						c.componentId(),
+						c.insumoId(),
+						c.insumoCode(),
+						c.insumoName(),
+						c.componentDescription(),
+						c.oldPrice(),
+						c.newPrice(),
+						c.difference(),
+						c.currentLineTotal(),
+						c.proposedLineTotal(),
+						c.lineTotalDifference()
+				))
+				.toList();
+		return new PriceUpdatePreviewResponse(changes, p.currentTotalCost(), p.proposedTotalCost(), p.difference());
+	}
+
+	private QualityReportResponse toDto(BudgetService.QualityReportDto r) {
+		List<QualityCheckDto> checks = r.checks().stream()
+				.map(c -> new QualityCheckDto(c.name(), c.passed(), c.description(), c.penalty()))
+				.toList();
+		List<BudgetAlertDto> alerts = r.alerts().stream()
+				.map(a -> new BudgetAlertDto(a.field(), a.message()))
+				.toList();
+		return new QualityReportResponse(r.score(), checks, alerts);
+	}
+
 	public record CreateBudgetRequest(
 			@NotBlank @Size(min = 2, max = 60) String code,
 			@NotBlank @Size(min = 3, max = 200) String name,
@@ -436,5 +563,66 @@ public class BudgetController {
 			BigDecimal result,
 			String notes,
 			int position
+	) {}
+
+	public record CreateRiskRequest(
+			@NotBlank String description,
+			@NotNull BigDecimal probability,
+			@NotNull BigDecimal impact,
+			String assignedTo,
+			String mitigation,
+			boolean mitigated
+	) {}
+
+	public record RiskDto(
+			UUID id,
+			UUID organizationId,
+			UUID budgetVersionId,
+			String description,
+			BigDecimal probability,
+			BigDecimal impact,
+			BigDecimal expectedAmount,
+			String assignedTo,
+			String mitigation,
+			boolean mitigated
+	) {}
+
+	public record PriceUpdatePreviewResponse(
+			List<PriceChangeDto> changes,
+			BigDecimal currentTotalCost,
+			BigDecimal proposedTotalCost,
+			BigDecimal difference
+	) {}
+
+	public record PriceChangeDto(
+			UUID componentId,
+			UUID insumoId,
+			String insumoCode,
+			String insumoName,
+			String componentDescription,
+			BigDecimal oldPrice,
+			BigDecimal newPrice,
+			BigDecimal difference,
+			BigDecimal currentLineTotal,
+			BigDecimal proposedLineTotal,
+			BigDecimal lineTotalDifference
+	) {}
+
+	public record QualityReportResponse(
+			int score,
+			List<QualityCheckDto> checks,
+			List<BudgetAlertDto> alerts
+	) {}
+
+	public record QualityCheckDto(
+			String name,
+			boolean passed,
+			String description,
+			int penalty
+	) {}
+
+	public record BudgetAlertDto(
+			String field,
+			String message
 	) {}
 }

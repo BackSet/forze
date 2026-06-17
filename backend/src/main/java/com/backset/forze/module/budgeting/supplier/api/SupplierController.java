@@ -11,13 +11,17 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 import com.backset.forze.module.budgeting.domain.supplier.PriceHistory;
+import com.backset.forze.module.budgeting.domain.supplier.PriceStatus;
 import com.backset.forze.module.budgeting.domain.supplier.Quotation;
 import com.backset.forze.module.budgeting.domain.supplier.Supplier;
 import com.backset.forze.module.budgeting.supplier.application.SupplierService;
+import com.backset.forze.module.identity.infrastructure.UserPrincipal;
 import com.backset.forze.shared.TenantContext;
 import io.swagger.v3.oas.annotations.Operation;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -142,7 +146,6 @@ public class SupplierController {
 		);
 	}
 
-	// Price History
 	@GetMapping("/price-history/{insumoId}")
 	@Operation(summary = "Get price history for an insumo.")
 	@PreAuthorize("@securityService.hasPermission('PROVEEDORES_READ')")
@@ -155,9 +158,45 @@ public class SupplierController {
 						h.price(),
 						h.currencyCode(),
 						h.priceDate(),
-						h.validUntil()
+						h.validUntil(),
+						h.status().name(),
+						h.supplierId(),
+						h.quotationId(),
+						h.city(),
+						h.taxesIncluded(),
+						h.transportIncluded(),
+						h.minOrder(),
+						h.paymentTerms()
 				))
 				.toList();
+	}
+
+	@PutMapping("/price-history/{priceId}/status")
+	@Operation(summary = "Update status of a price history record.")
+	@PreAuthorize("@securityService.hasPermission('PROVEEDORES_WRITE')")
+	public PriceHistoryDto updatePriceStatus(
+			@PathVariable UUID priceId,
+			@Valid @RequestBody UpdatePriceStatusRequest request,
+			@AuthenticationPrincipal UserPrincipal principal
+	) {
+		UUID orgId = TenantContext.getRequiredTenantId();
+		PriceHistory h = supplierService.updatePriceStatus(orgId, priceId, PriceStatus.valueOf(request.status()), principal.id());
+		return new PriceHistoryDto(
+				h.id(),
+				h.insumoId(),
+				h.price(),
+				h.currencyCode(),
+				h.priceDate(),
+				h.validUntil(),
+				h.status().name(),
+				h.supplierId(),
+				h.quotationId(),
+				h.city(),
+				h.taxesIncluded(),
+				h.transportIncluded(),
+				h.minOrder(),
+				h.paymentTerms()
+		);
 	}
 
 	private SupplierDto toDto(Supplier s) {
@@ -248,6 +287,18 @@ public class SupplierController {
 			BigDecimal price,
 			String currencyCode,
 			LocalDate priceDate,
-			LocalDate validUntil
+			LocalDate validUntil,
+			String status,
+			UUID supplierId,
+			UUID quotationId,
+			String city,
+			boolean taxesIncluded,
+			boolean transportIncluded,
+			BigDecimal minOrder,
+			String paymentTerms
+	) {}
+
+	public record UpdatePriceStatusRequest(
+			@NotBlank String status
 	) {}
 }

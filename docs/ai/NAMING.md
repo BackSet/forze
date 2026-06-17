@@ -66,11 +66,13 @@
 | Avance fisico | `ProgressEntry` | `budgeting_progress_entries` |
 | Costo real | `RealCost` | `budgeting_real_costs` |
 | Adicional | `Additional` | `budgeting_additionals` |
+| Riesgo de presupuesto | `BudgetRisk` | `budgeting_budget_risks` |
 | Auditoria | `AuditLogEntry` | `budgeting_audit_log` |
 
 ## Budgeting: estados (enum -> valores)
 
 - `BudgetStatus`: `BORRADOR, EN_CALCULO, REQUIERE_AJUSTES, PENDIENTE_APROBACION, APROBADO, ENVIADO, ACEPTADO, RECHAZADO, ARCHIVADO`.
+- `PriceStatus`: `BORRADOR, VIGENTE, POR_VERIFICAR, VENCIDO, BLOQUEADO`.
 - `ViabilityStatus`: `VIABLE, VIABLE_CON_ALERTAS, NO_VIABLE`.
 - `ApuStatus`: `BORRADOR, VALIDADO, VIGENTE, OBSOLETO, ARCHIVADO`.
 - `InsumoType`: `MATERIAL, MANO_DE_OBRA, EQUIPO, TRANSPORTE, SUBCONTRATO, OTRO`.

@@ -135,4 +135,8 @@ public class Supplier {
 	public BigDecimal rating() {
 		return rating;
 	}
+
+	public String paymentTerms() {
+		return paymentTerms;
+	}
 }

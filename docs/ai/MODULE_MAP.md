@@ -52,7 +52,7 @@ Implementadas todas las capas api/application por área. FKs desacopladas; integ
   `ProjectTeamMember` (`budgeting_project_team`); enum `ProjectStatus`.
 - Domain `budget`: `Budget` (`budgeting_budgets`), `BudgetVersion` (`budgeting_budget_versions`),
   `Chapter` (`budgeting_chapters`), `BudgetItem` (`budgeting_budget_items`), `ItemApu` (`budgeting_item_apu`),
-  `ItemApuComponent` (`budgeting_item_apu_components`), `Measurement` (`budgeting_measurements`);
+  `ItemApuComponent` (`budgeting_item_apu_components`), `Measurement` (`budgeting_measurements`), `BudgetRisk` (`budgeting_budget_risks`);
   enums `BudgetStatus`, `ViabilityStatus`, `ItemValidationStatus`.
 - Domain `scenario`: `Scenario` (`budgeting_scenarios`), `ScenarioOverride` (`budgeting_scenario_overrides`);
   enums `ScenarioType`, `RiskLevel`.

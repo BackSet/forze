@@ -128,6 +128,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/price-history/{priceId}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update status of a price history record. */
+        put: operations["updatePriceStatus"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/members/{id}": {
         parameters: {
             query?: never;
@@ -212,6 +229,25 @@ export interface paths {
         put: operations["configureFinancials"];
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/budget-risks/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get budget risk details. */
+        get: operations["getRisk"];
+        /** Update an existing budget risk. */
+        put: operations["updateRisk"];
+        post?: never;
+        /** Delete a budget risk. */
+        delete: operations["deleteRisk"];
         options?: never;
         head?: never;
         patch?: never;
@@ -610,6 +646,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/budget-versions/{versionId}/risks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List all risks for a budget version. */
+        get: operations["getRisks"];
+        put?: never;
+        /** Add a new risk to a budget version. */
+        post: operations["addRisk"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/budget-versions/{versionId}/items": {
         parameters: {
             query?: never;
@@ -676,6 +730,23 @@ export interface paths {
         put?: never;
         /** Submit a budget version for approval. */
         post: operations["submit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/budget-versions/{versionId}/apply-new-prices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Apply new prices to budget version components. */
+        post: operations["applyNewPrices"];
         delete?: never;
         options?: never;
         head?: never;
@@ -927,6 +998,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/budget-versions/{versionId}/quality": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get quality evaluation report for a budget version. */
+        get: operations["getQualityReport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/budget-versions/{versionId}/price-update-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get preview of applying new prices to budget version components. */
+        get: operations["getPriceUpdatePreview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/budget-versions/{id}": {
         parameters: {
             query?: never;
@@ -1157,6 +1262,31 @@ export interface components {
             currentBudgetId?: string;
             status?: string;
         };
+        UpdatePriceStatusRequest: {
+            status: string;
+        };
+        PriceHistoryDto: {
+            /** Format: uuid */
+            id?: string;
+            /** Format: uuid */
+            insumoId?: string;
+            price?: number;
+            currencyCode?: string;
+            /** Format: date */
+            priceDate?: string;
+            /** Format: date */
+            validUntil?: string;
+            status?: string;
+            /** Format: uuid */
+            supplierId?: string;
+            /** Format: uuid */
+            quotationId?: string;
+            city?: string;
+            taxesIncluded?: boolean;
+            transportIncluded?: boolean;
+            minOrder?: number;
+            paymentTerms?: string;
+        };
         UpdateMemberRoleRequest: {
             role: string;
         };
@@ -1270,6 +1400,29 @@ export interface components {
             salePrice?: number;
             margin?: number;
             viabilityStatus?: string;
+        };
+        CreateRiskRequest: {
+            description: string;
+            probability: number;
+            impact: number;
+            assignedTo?: string;
+            mitigation?: string;
+            mitigated?: boolean;
+        };
+        RiskDto: {
+            /** Format: uuid */
+            id?: string;
+            /** Format: uuid */
+            organizationId?: string;
+            /** Format: uuid */
+            budgetVersionId?: string;
+            description?: string;
+            probability?: number;
+            impact?: number;
+            expectedAmount?: number;
+            assignedTo?: string;
+            mitigation?: string;
+            mitigated?: boolean;
         };
         UpdateItemRequest: {
             quantity: number;
@@ -1580,18 +1733,6 @@ export interface components {
             username?: string;
             email?: string;
         };
-        PriceHistoryDto: {
-            /** Format: uuid */
-            id?: string;
-            /** Format: uuid */
-            insumoId?: string;
-            price?: number;
-            currencyCode?: string;
-            /** Format: date */
-            priceDate?: string;
-            /** Format: date */
-            validUntil?: string;
-        };
         PermissionDto: {
             code?: string;
             area?: string;
@@ -1613,6 +1754,44 @@ export interface components {
             organizationId?: string;
             role?: string;
             permissions?: string[];
+        };
+        BudgetAlertDto: {
+            field?: string;
+            message?: string;
+        };
+        QualityCheckDto: {
+            name?: string;
+            passed?: boolean;
+            description?: string;
+            /** Format: int32 */
+            penalty?: number;
+        };
+        QualityReportResponse: {
+            /** Format: int32 */
+            score?: number;
+            checks?: components["schemas"]["QualityCheckDto"][];
+            alerts?: components["schemas"]["BudgetAlertDto"][];
+        };
+        PriceChangeDto: {
+            /** Format: uuid */
+            componentId?: string;
+            /** Format: uuid */
+            insumoId?: string;
+            insumoCode?: string;
+            insumoName?: string;
+            componentDescription?: string;
+            oldPrice?: number;
+            newPrice?: number;
+            difference?: number;
+            currentLineTotal?: number;
+            proposedLineTotal?: number;
+            lineTotalDifference?: number;
+        };
+        PriceUpdatePreviewResponse: {
+            changes?: components["schemas"]["PriceChangeDto"][];
+            currentTotalCost?: number;
+            proposedTotalCost?: number;
+            difference?: number;
         };
         DocumentDto: {
             /** Format: uuid */
@@ -1932,6 +2111,32 @@ export interface operations {
             };
         };
     };
+    updatePriceStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                priceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdatePriceStatusRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PriceHistoryDto"];
+                };
+            };
+        };
+    };
     updateMemberRole: {
         parameters: {
             query?: never;
@@ -2141,6 +2346,74 @@ export interface operations {
                 content: {
                     "*/*": components["schemas"]["VersionDto"];
                 };
+            };
+        };
+    };
+    getRisk: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["RiskDto"];
+                };
+            };
+        };
+    };
+    updateRisk: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateRiskRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["RiskDto"];
+                };
+            };
+        };
+    };
+    deleteRisk: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -3084,6 +3357,54 @@ export interface operations {
             };
         };
     };
+    getRisks: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["RiskDto"][];
+                };
+            };
+        };
+    };
+    addRisk: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateRiskRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["RiskDto"];
+                };
+            };
+        };
+    };
     getItems: {
         parameters: {
             query?: never;
@@ -3267,6 +3588,26 @@ export interface operations {
                 content: {
                     "*/*": components["schemas"]["ApprovalRequestDto"];
                 };
+            };
+        };
+    };
+    applyNewPrices: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -3730,6 +4071,50 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["AccessDto"];
+                };
+            };
+        };
+    };
+    getQualityReport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["QualityReportResponse"];
+                };
+            };
+        };
+    };
+    getPriceUpdatePreview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                versionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PriceUpdatePreviewResponse"];
                 };
             };
         };

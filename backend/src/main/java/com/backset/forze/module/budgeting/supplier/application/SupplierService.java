@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.UUID;
 
 import com.backset.forze.module.budgeting.domain.supplier.PriceHistory;
+import com.backset.forze.module.budgeting.domain.supplier.PriceStatus;
 import com.backset.forze.module.budgeting.domain.supplier.Quotation;
 import com.backset.forze.module.budgeting.domain.supplier.QuotationItem;
 import com.backset.forze.module.budgeting.domain.supplier.Supplier;
@@ -13,6 +14,7 @@ import com.backset.forze.module.budgeting.infrastructure.PriceHistoryRepository;
 import com.backset.forze.module.budgeting.infrastructure.QuotationItemRepository;
 import com.backset.forze.module.budgeting.infrastructure.QuotationRepository;
 import com.backset.forze.module.budgeting.infrastructure.SupplierRepository;
+import com.backset.forze.module.budgeting.audit.application.AuditService;
 import com.backset.forze.shared.api.ApiException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -25,17 +27,20 @@ public class SupplierService {
 	private final QuotationRepository quotationRepository;
 	private final QuotationItemRepository quotationItemRepository;
 	private final PriceHistoryRepository priceHistoryRepository;
+	private final AuditService auditService;
 
 	public SupplierService(
 			SupplierRepository supplierRepository,
 			QuotationRepository quotationRepository,
 			QuotationItemRepository quotationItemRepository,
-			PriceHistoryRepository priceHistoryRepository
+			PriceHistoryRepository priceHistoryRepository,
+			AuditService auditService
 	) {
 		this.supplierRepository = supplierRepository;
 		this.quotationRepository = quotationRepository;
 		this.quotationItemRepository = quotationItemRepository;
 		this.priceHistoryRepository = priceHistoryRepository;
+		this.auditService = auditService;
 	}
 
 	@Transactional(readOnly = true)
@@ -84,7 +89,7 @@ public class SupplierService {
 
 	@Transactional
 	public Quotation createQuotation(UUID orgId, CreateQuotationCmd cmd) {
-		getSupplier(orgId, cmd.supplierId());
+		Supplier supplier = getSupplier(orgId, cmd.supplierId());
 
 		UUID id = UUID.randomUUID();
 		Quotation quotation = new Quotation(id, orgId, cmd.supplierId(), cmd.quotationDate(), cmd.currencyCode());
@@ -100,6 +105,7 @@ public class SupplierService {
 			PriceHistory hist = new PriceHistory(UUID.randomUUID(), orgId, itemCmd.insumoId(), itemCmd.unitPrice(), cmd.currencyCode(), cmd.quotationDate());
 			hist.withOrigin(cmd.supplierId(), id, cmd.city());
 			hist.withInclusions(itemCmd.taxesIncluded(), itemCmd.transportIncluded(), cmd.validUntil());
+			hist.withConditions(itemCmd.minOrder(), supplier.paymentTerms());
 			priceHistoryRepository.save(hist);
 		}
 
@@ -111,6 +117,20 @@ public class SupplierService {
 		return priceHistoryRepository.findByInsumoIdOrderByPriceDateDesc(insumoId).stream()
 				.filter(h -> h.organizationId().equals(orgId))
 				.toList();
+	}
+
+	@Transactional
+	public PriceHistory updatePriceStatus(UUID orgId, UUID priceId, PriceStatus status, UUID userId) {
+		PriceHistory price = priceHistoryRepository.findById(priceId)
+				.filter(p -> p.organizationId().equals(orgId))
+				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Price history record not found"));
+
+		PriceStatus oldStatus = price.status();
+		price.changeStatus(status);
+		PriceHistory saved = priceHistoryRepository.save(price);
+
+		auditService.log(orgId, userId, "UPDATE_PRICE_STATUS", "PriceHistory", priceId, oldStatus.name(), status.name(), "Price status updated", null);
+		return saved;
 	}
 
 	public record CreateSupplierCmd(

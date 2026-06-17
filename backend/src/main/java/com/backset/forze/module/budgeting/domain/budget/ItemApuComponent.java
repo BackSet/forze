@@ -116,6 +116,11 @@ public class ItemApuComponent {
 		this.priceLocked = true;
 	}
 
+	public void changeUnitPrice(BigDecimal unitPrice, String priceSource) {
+		this.unitPrice = unitPrice;
+		this.priceSource = priceSource;
+	}
+
 	public UUID id() {
 		return id;
 	}

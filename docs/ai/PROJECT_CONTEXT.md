@@ -32,7 +32,7 @@
 - `configuration`: propiedades, seguridad, OpenAPI, CORS, Clock.
 - `shared.api`: `ProblemDetail` y excepciones API.
 - Persistencia: PostgreSQL + Flyway; Hibernate `ddl-auto=validate`.
-- Migraciones: `V1__identity_auth.sql` (identidad) y `V2..V13` (modulo `budgeting`; `V13` = RBAC persistente).
+- Migraciones: `V1__identity_auth.sql` (identidad), `V2..V13` (modulo `budgeting`; `V13` = RBAC persistente) y `V14` (Entrega A: vigencia de precios y gestion de riesgos).
 - Aislamiento por organización implementado mediante validación de membresías en filtro/interceptor.
 - Autorizacion RBAC persistente: permisos, roles y su mapeo son datos (`budgeting_permissions`,
   `budgeting_roles`, `budgeting_role_permissions`). `SecurityService` resuelve los permisos efectivos del

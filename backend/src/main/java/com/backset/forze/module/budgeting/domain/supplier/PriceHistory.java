@@ -7,6 +7,8 @@ import java.util.UUID;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
@@ -54,6 +56,16 @@ public class PriceHistory {
 	@Column(name = "transport_included", nullable = false)
 	private boolean transportIncluded;
 
+	@Enumerated(EnumType.STRING)
+	@Column(nullable = false, length = 20)
+	private PriceStatus status;
+
+	@Column(name = "min_order", precision = 18, scale = 4)
+	private BigDecimal minOrder;
+
+	@Column(name = "payment_terms", length = 200)
+	private String paymentTerms;
+
 	@Column(name = "created_at", nullable = false)
 	private Instant createdAt;
 
@@ -68,6 +80,7 @@ public class PriceHistory {
 		this.price = price;
 		this.currencyCode = currencyCode;
 		this.priceDate = priceDate;
+		this.status = PriceStatus.VIGENTE;
 	}
 
 	@PrePersist
@@ -113,5 +126,46 @@ public class PriceHistory {
 
 	public UUID organizationId() {
 		return organizationId;
+	}
+
+	public PriceStatus status() {
+		return status;
+	}
+
+	public BigDecimal minOrder() {
+		return minOrder;
+	}
+
+	public String paymentTerms() {
+		return paymentTerms;
+	}
+
+	public void changeStatus(PriceStatus status) {
+		this.status = status;
+	}
+
+	public void withConditions(BigDecimal minOrder, String paymentTerms) {
+		this.minOrder = minOrder;
+		this.paymentTerms = paymentTerms;
+	}
+
+	public UUID supplierId() {
+		return supplierId;
+	}
+
+	public UUID quotationId() {
+		return quotationId;
+	}
+
+	public String city() {
+		return city;
+	}
+
+	public boolean taxesIncluded() {
+		return taxesIncluded;
+	}
+
+	public boolean transportIncluded() {
+		return transportIncluded;
 	}
 }
