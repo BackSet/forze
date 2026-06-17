@@ -76,7 +76,12 @@
 - Refresh token: aleatorio, guardado solo como hash SHA-256, con familia/sesion, expiracion, revocacion y rotacion.
 - Refresh cookie: HttpOnly, path `/api/auth`, SameSite configurable, Secure en prod.
 - CSRF: deshabilitado deliberadamente. La API es stateless y se autoriza solo via el header `Authorization: Bearer`, que el navegador nunca adjunta automaticamente en peticiones cross-site, por lo que CSRF (ataque de credencial ambiental) no aplica al API. La unica cookie es el refresh token (HttpOnly, path `/api/auth`, SameSite Lax/Strict), de modo que ninguna operacion sensible puede autorizarse por cookie cross-site. Ademas el SPA corre cross-origin (5173 -> 8080), donde un double-submit cookie CSRF no seria legible por el cliente. Documentado en `SecurityConfiguration`.
-- Bootstrap admin: solo perfil `dev`, idempotente, password obligatorio por entorno.
+- CORS: orígenes permitidos por `forze.security.cors.allowed-origins`, `allowCredentials=true`, métodos
+  GET/POST/PUT/PATCH/DELETE/OPTIONS; allowedHeaders explícitos `Authorization, Content-Type, Accept, Origin,
+  X-Organization-Id` (este último necesario para el preflight de las peticiones tenant). No se usa `*` con
+  credenciales. Sin `X-XSRF-TOKEN` porque CSRF está deshabilitado.
+- Bootstrap admin: `AdminBootstrapper` crea solo la cuenta global; la membresía (`ADMINISTRADOR`) se crea al
+  crear una organización (`OrganizationService`). Solo perfil `dev`, idempotente, password obligatorio por entorno.
 
 ## Frontend
 

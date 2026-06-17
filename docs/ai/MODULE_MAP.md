@@ -132,7 +132,12 @@ Implementadas todas las capas api/application por área. FKs desacopladas; integ
 - `lib/auth/auth-api.ts`: login, refresh single-flight, `/me`, logout.
 - `lib/auth/session-store.ts`: Zustand session/preferencias (incluye `role` y `permissions` efectivos de la org activa).
 - `lib/auth/permissions.ts`: `usePermission`, `useHasAnyPermission`, `useIsAdministrator`, `useEffectiveAccess` (carga `/api/me/access`).
-- `lib/auth/permission-gate.tsx`: `PermissionGate`. App Shell hace gating de menu por permiso, panel 403 e invalidacion de queries al cambiar organizacion.
+- `lib/auth/permission-gate.tsx`: `PermissionGate`. App Shell hace gating de menu por permiso e invalidacion de queries al cambiar organizacion.
+- `app/access-state.ts`: `resolveAccessView`/`errorStatus` (funcion pura, testeada). El App Shell distingue
+  estados de acceso del query `/api/me/access`: `loading` (pendiente o refetch tras cambiar org), `network-error`
+  (fallo de red/CORS, recuperable con reintento), `stale-organization` (403 real -> volver al selector de
+  organizacion), `forbidden` (permisos cargados sin acceso a la pestaña) y `allowed`. Un error de red/CORS nunca
+  se muestra como 403.
 - `lib/api/generated/schema.d.ts`: contrato TS de OpenAPI.
 
 ## Tests

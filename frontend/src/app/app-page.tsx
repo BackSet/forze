@@ -18,12 +18,16 @@ import {
   Activity,
   Users,
   ShieldAlert,
+  Loader2,
+  WifiOff,
+  RefreshCw,
   type LucideIcon
 } from 'lucide-react'
 
 import { api } from '@/lib/api/client'
 import { apiErrorMessage } from '@/lib/api/errors'
 import { useEffectiveAccess, type Permission } from '@/lib/auth/permissions'
+import { resolveAccessView, errorStatus } from '@/app/access-state'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ThemeToggle } from '@/components/theme-toggle'
@@ -97,6 +101,49 @@ function Forbidden403() {
   )
 }
 
+function AccessLoading() {
+  return (
+    <div className="flex flex-col items-center justify-center text-center gap-3 py-20" role="status" aria-live="polite">
+      <Loader2 className="size-8 text-primary animate-spin motion-reduce:animate-none" aria-hidden="true" />
+      <p className="text-sm text-muted-foreground">Cargando permisos de la organización…</p>
+    </div>
+  )
+}
+
+// Recoverable failure (network/CORS/API): never shown as a 403 access denial.
+function AccessError({ onRetry }: { onRetry: () => void }) {
+  return (
+    <div className="flex flex-col items-center justify-center text-center gap-3 py-20" role="alert">
+      <WifiOff className="size-9 text-amber-500" aria-hidden="true" />
+      <h2 className="text-lg font-bold">No se pudieron cargar tus permisos</h2>
+      <p className="text-sm text-muted-foreground max-w-sm">
+        Ocurrió un error de red o de conexión con el servidor. Esto no significa que no tengas acceso.
+      </p>
+      <Button variant="secondary" size="sm" onClick={onRetry}>
+        <RefreshCw className="size-4" />
+        Reintentar
+      </Button>
+    </div>
+  )
+}
+
+// Stale/invalid active organization: returns to the organization selector instead
+// of leaving the UI permanently blocked.
+function StaleOrganization({ onReset }: { onReset: () => void }) {
+  return (
+    <div className="flex flex-col items-center justify-center text-center gap-3 py-20" role="alert">
+      <ShieldAlert className="size-9 text-destructive" aria-hidden="true" />
+      <h2 className="text-lg font-bold">Organización no disponible</h2>
+      <p className="text-sm text-muted-foreground max-w-sm">
+        No perteneces a la organización activa o ya no está disponible. Selecciona otra organización para continuar.
+      </p>
+      <Button variant="secondary" size="sm" onClick={onReset}>
+        Volver a seleccionar organización
+      </Button>
+    </div>
+  )
+}
+
 export function AppPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
@@ -106,8 +153,8 @@ export function AppPage() {
   const permissions = useSessionStore((state) => state.permissions)
 
   // Resolve the current user's role/permissions for the active organization.
-  useEffectiveAccess()
-  
+  const accessQuery = useEffectiveAccess()
+
   const [activeTab, setActiveTab] = useState<string>('projects')
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
   const [selectedBudgetId, setSelectedBudgetId] = useState<string | null>(null)
@@ -237,6 +284,24 @@ export function AppPage() {
       </main>
     )
   }
+
+  // Distinguish access states so a pending/failed access query is never rendered
+  // as a permission denial. The backend remains the authority.
+  const requiredPermission = TAB_PERMISSION[activeTab]
+  const accessView = resolveAccessView({
+    isPending: accessQuery.isPending,
+    isFetching: accessQuery.isFetching,
+    isError: accessQuery.isError,
+    errorStatus: errorStatus(accessQuery.error),
+    permissionsCount: permissions.length,
+    hasRequiredPermission: !requiredPermission || permissions.includes(requiredPermission),
+  })
+
+  function resetOrganization() {
+    setActiveOrgId(null)
+    queryClient.removeQueries()
+  }
+
   return (
     <div className="min-h-dvh bg-background text-foreground flex flex-col font-sans">
       {/* Top Header */}
@@ -323,7 +388,13 @@ export function AppPage() {
         {/* Dynamic Content Surface */}
         <main className="flex-1 overflow-y-auto bg-background p-6">
           <div className="w-full max-w-6xl mx-auto">
-            {TAB_PERMISSION[activeTab] && !permissions.includes(TAB_PERMISSION[activeTab]) ? (
+            {accessView === 'loading' ? (
+              <AccessLoading />
+            ) : accessView === 'stale-organization' ? (
+              <StaleOrganization onReset={resetOrganization} />
+            ) : accessView === 'network-error' ? (
+              <AccessError onRetry={() => accessQuery.refetch()} />
+            ) : accessView === 'forbidden' ? (
               <Forbidden403 />
             ) : (
               <>

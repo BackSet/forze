@@ -1,7 +1,10 @@
 package com.backset.forze.config;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsStringIgnoringCase;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.backset.forze.TestBudgetingExcludedConfiguration;
@@ -41,6 +44,27 @@ class SecurityConfigTests {
 	@Test
 	void deniesUnknownEndpointsByDefault() throws Exception {
 		mockMvc.perform(get("/internal/not-defined"))
+				.andExpect(status().isForbidden());
+	}
+
+	@Test
+	void allowsTenantHeaderInCorsPreflight() throws Exception {
+		mockMvc.perform(options("/api/me/access")
+						.header("Origin", "http://localhost:5173")
+						.header("Access-Control-Request-Method", "GET")
+						.header("Access-Control-Request-Headers", "authorization,x-organization-id"))
+				.andExpect(status().isOk())
+				.andExpect(header().string("Access-Control-Allow-Origin", "http://localhost:5173"))
+				.andExpect(header().string("Access-Control-Allow-Credentials", "true"))
+				.andExpect(header().string("Access-Control-Allow-Headers", containsStringIgnoringCase("x-organization-id")));
+	}
+
+	@Test
+	void rejectsCorsPreflightFromDisallowedOrigin() throws Exception {
+		mockMvc.perform(options("/api/me/access")
+						.header("Origin", "http://evil.example")
+						.header("Access-Control-Request-Method", "GET")
+						.header("Access-Control-Request-Headers", "authorization,x-organization-id"))
 				.andExpect(status().isForbidden());
 	}
 

@@ -89,7 +89,10 @@ class SecurityConfiguration {
 		CorsConfiguration configuration = new CorsConfiguration();
 		configuration.setAllowedOrigins(properties.allowedOrigins());
 		configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-		configuration.setAllowedHeaders(List.of(HttpHeaders.AUTHORIZATION, HttpHeaders.CONTENT_TYPE, HttpHeaders.ACCEPT, HttpHeaders.ORIGIN));
+		// X-Organization-Id carries the active tenant for every budgeting request
+		// (resolved by TenantFilter), so the CORS preflight must allow it. CSRF is
+		// disabled for this stateless bearer API, so no X-XSRF-TOKEN header is needed.
+		configuration.setAllowedHeaders(List.of(HttpHeaders.AUTHORIZATION, HttpHeaders.CONTENT_TYPE, HttpHeaders.ACCEPT, HttpHeaders.ORIGIN, "X-Organization-Id"));
 		configuration.setExposedHeaders(List.of());
 		configuration.setAllowCredentials(true);
 		configuration.setMaxAge(3600L);
