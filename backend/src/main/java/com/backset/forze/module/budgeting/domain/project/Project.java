@@ -175,4 +175,24 @@ public class Project {
 	public ProjectStatus status() {
 		return status;
 	}
+
+	public String description() {
+		return description;
+	}
+
+	public String workType() {
+		return workType;
+	}
+
+	public String location() {
+		return location;
+	}
+
+	public LocalDate estimatedStartDate() {
+		return estimatedStartDate;
+	}
+
+	public LocalDate estimatedEndDate() {
+		return estimatedEndDate;
+	}
 }

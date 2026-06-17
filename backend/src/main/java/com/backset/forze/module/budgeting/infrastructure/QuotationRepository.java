@@ -9,4 +9,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface QuotationRepository extends JpaRepository<Quotation, UUID> {
 
 	List<Quotation> findBySupplierId(UUID supplierId);
+
+	List<Quotation> findByOrganizationId(UUID organizationId);
 }

@@ -113,4 +113,36 @@ public class Measurement {
 	public int position() {
 		return position;
 	}
+
+	public String description() {
+		return description;
+	}
+
+	public BigDecimal length() {
+		return length;
+	}
+
+	public BigDecimal width() {
+		return width;
+	}
+
+	public BigDecimal height() {
+		return height;
+	}
+
+	public BigDecimal itemCount() {
+		return itemCount;
+	}
+
+	public BigDecimal factor() {
+		return factor;
+	}
+
+	public String formula() {
+		return formula;
+	}
+
+	public String notes() {
+		return notes;
+	}
 }

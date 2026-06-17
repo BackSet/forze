@@ -163,4 +163,12 @@ public class ItemApuComponent {
 	public int position() {
 		return position;
 	}
+
+	public String description() {
+		return description;
+	}
+
+	public String priceSource() {
+		return priceSource;
+	}
 }

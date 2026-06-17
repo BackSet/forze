@@ -30,14 +30,13 @@
 - Application: `DocumentRenderer`, `TechnicalSmokeDocument`.
 - Domain: `DocumentRenderException`.
 - Infrastructure: `ThymeleafPdfDocumentRenderer`.
-- Template: `templates/technical-smoke.html`.
-- No hay endpoint de negocio PDF.
+- Template: `templates/technical-smoke.html`, `templates/cotizacion.html`, `templates/presupuesto-detallado.html`, `templates/resumen-capitulos.html`.
+- API: `DocumentController` descarga cotización, presupuesto detallado y resumen de capítulos en PDF sin exponer datos confidenciales.
 
 ### `module.budgeting`
 
-Paquetes: `domain.<area>` (entidades + enums + invariantes) e `infrastructure` (repositories Spring Data).
-Sin `api`/`application` todavia (esta tarea no incluye endpoints). Todas las FK se guardan como `UUID`
-planos para desacoplar agregados; la integridad se aplica en el esquema. Migraciones `V2..V11`.
+Paquetes: `domain.<area>` (entidades + enums + invariantes), `infrastructure` (repositories Spring Data + TenantContext), `api` y `application` (servicios de cálculo, control de acceso y APIs REST).
+Implementadas todas las capas api/application por área. FKs desacopladas; integridad en BD. Migraciones `V2..V12`.
 
 - Domain `admin`: `Organization` (`budgeting_organizations`), `UnitOfMeasure` (`budgeting_units_of_measure`),
   `Category` (`budgeting_categories`), `TaxConfig` (`budgeting_tax_configs`).
@@ -72,6 +71,22 @@ planos para desacoplar agregados; la integridad se aplica en el esquema. Migraci
 - Flujos soportados: crear proyecto con monto objetivo; presupuesto por capitulos/rubros; APU con snapshot
   de precios; reutilizacion (`rubro_relations`, `keywords`); escenarios; envio/aprobacion con version
   inmutable; documentos; control de obra con linea base; auditoria.
+- Security (`security`): `ForzePermission` (permisos granulares por area: proyectos, presupuestos, catalogos,
+  proveedores, aprobaciones, documentos, administracion, auditoria), `SecurityService` (resuelve organizacion
+  activa via cabecera `X-Organization-Id`, valida membresia y permisos por rol), `TenantFilter` +
+  `shared.TenantContext` (aislamiento por organizacion; los servicios filtran repositories por org activa).
+- Roles -> permisos: `ADMINISTRADOR` (todos), `PRESUPUESTISTA` (proyectos/presupuestos/catalogos/escenarios/
+  documentos), `APROBADOR` (lectura + aprobar/observar/rechazar), `COMPRAS` (catalogos/proveedores/cotizaciones).
+- API por area (REST, DTOs, validacion, sin exponer entidades JPA):
+  `admin` (`OrganizationController`, `MembershipController`, `UserManagementController`, `CatalogConfigController`),
+  `project` (`ClientController`, `ProjectController`), `catalog` (`CatalogController`),
+  `supplier` (`SupplierController`), `budget` (`BudgetController`), `scenario` (`ScenarioController`),
+  `approval` (`ApprovalController`), `document` (`BudgetDocumentController`), `audit` (`AuditController`).
+- Servicios de calculo (BigDecimal, scale/rounding centralizados, division-por-cero controlada):
+  `ApuCalculationService`, `BudgetItemCalculationService`, `BudgetVersionCalculationService` (directos,
+  indirectos, contingencia, utilidad, impuestos, margen, diferencia vs objetivo), `ScenarioCalculationService`
+  (recalcula desde version base aplicando overrides), `ViabilityEvaluationService`
+  (`VIABLE`/`VIABLE_CON_ALERTAS`/`NO_VIABLE`), `AlertGenerationService`.
 
 ### `shared.api`
 
@@ -89,6 +104,16 @@ planos para desacoplar agregados; la integridad se aplica en el esquema. Migraci
 - `/`: `components/home-page.tsx`.
 - `/login`: `features/auth/login-page.tsx`.
 - `/app`: `app/app-page.tsx`.
+  - Pestaña de Organización: `src/app/organization-tab.tsx`
+  - Pestaña de Clientes y Proyectos: `src/app/clients-projects-tab.tsx`
+  - Pestaña de Catálogo Técnico: `src/app/catalog-tab.tsx`
+  - Pestaña de Proveedores: `src/app/suppliers-tab.tsx`
+  - Pestaña de Versiones y Tasas: `src/app/budgets-tab.tsx`
+  - Pestaña de Planilla Editor: `src/app/editor-tab.tsx`
+  - Pestaña de Escenarios: `src/app/scenarios-tab.tsx`
+  - Pestaña de Flujo Aprobación: `src/app/approvals-tab.tsx`
+  - Pestaña de Documentos PDF: `src/app/documents-tab.tsx`
+  - Pestaña de Auditoría: `src/app/audit-tab.tsx`
 
 ### Auth/API
 
@@ -101,7 +126,8 @@ planos para desacoplar agregados; la integridad se aplica en el esquema. Migraci
 ## Tests
 
 - Backend: seguridad, contexto, Modulith, Testcontainers PostgreSQL, document renderer, JWT, token hashing, AuthService.
-- Budgeting: `BudgetVersionInvariantTests` (invariante de inmutabilidad de version aprobada, sin Docker) y
+- Budgeting: `BudgetVersionInvariantTests` (invariante de inmutabilidad de version aprobada, sin Docker),
+  `BudgetCalculationServiceTests` (calculos APU/version: valores normales, cero, redondeo BigDecimal; sin Docker) y
   `BudgetingPersistenceTests` (Testcontainers: migraciones + `validate`, precision numerica, unique por
   organizacion, FK `RESTRICT`, inmutabilidad de snapshot ante cambio de catalogo, cascade del arbol de
   version, bloqueo optimista en `BudgetVersion`). Los Testcontainers se omiten sin Docker.

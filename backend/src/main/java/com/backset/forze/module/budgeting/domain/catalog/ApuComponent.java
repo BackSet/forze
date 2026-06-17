@@ -132,4 +132,8 @@ public class ApuComponent {
 	public int position() {
 		return position;
 	}
+
+	public String description() {
+		return description;
+	}
 }

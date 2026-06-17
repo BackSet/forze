@@ -218,4 +218,12 @@ public class BudgetItem {
 	public int position() {
 		return position;
 	}
+
+	public String description() {
+		return description;
+	}
+
+	public UUID categoryId() {
+		return categoryId;
+	}
 }

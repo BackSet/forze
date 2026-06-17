@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8" />
+  <title>Cotización de Presupuesto</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 20mm;
+    }
+    body {
+      color: #333333;
+      font-family: Arial, sans-serif;
+      font-size: 11px;
+      line-height: 1.6;
+    }
+    .header {
+      border-bottom: 2px solid #333333;
+      margin-bottom: 20px;
+      padding-bottom: 10px;
+    }
+    .title {
+      font-size: 20px;
+      font-weight: bold;
+      margin: 0;
+      text-transform: uppercase;
+    }
+    .meta-table {
+      margin-bottom: 20px;
+      width: 100%;
+    }
+    .meta-table td {
+      padding: 4px 0;
+    }
+    .meta-label {
+      font-weight: bold;
+      width: 120px;
+    }
+    .content-table {
+      border-collapse: collapse;
+      margin-top: 15px;
+      width: 100%;
+    }
+    .content-table th {
+      background-color: #f2f2f2;
+      border: 1px solid #dddddd;
+      font-weight: bold;
+      padding: 8px;
+      text-align: left;
+    }
+    .content-table td {
+      border: 1px solid #dddddd;
+      padding: 8px;
+    }
+    .number-cell {
+      text-align: right;
+    }
+    .total-section {
+      font-size: 13px;
+      font-weight: bold;
+      margin-top: 25px;
+      text-align: right;
+    }
+    .footer {
+      font-size: 9px;
+      margin-top: 50px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="title" th:text="${orgName}">Constructora</div>
+    <div>COTIZACIÓN DE PRESUPUESTO</div>
+  </div>
+
+  <table class="meta-table">
+    <tr>
+      <td class="meta-label">Proyecto:</td>
+      <td th:text="${projectName}">Proyecto de Construcción</td>
+      <td class="meta-label">Cliente:</td>
+      <td th:text="${clientName}">Cliente Demo</td>
+    </tr>
+    <tr>
+      <td class="meta-label">Ubicación:</td>
+      <td th:text="${location}">Ciudad, País</td>
+      <td class="meta-label">Moneda:</td>
+      <td th:text="${currency}">USD</td>
+    </tr>
+  </table>
+
+  <p>Presentamos la propuesta económica detallada para el proyecto de referencia:</p>
+
+  <table class="content-table">
+    <thead>
+      <tr>
+        <th>Código</th>
+        <th>Descripción del Capítulo</th>
+        <th class="number-cell" style="width: 150px;">Total Ofertado</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr th:each="chap : ${chapters}">
+        <td th:text="${chap.code}">CAP-01</td>
+        <td th:text="${chap.name}">Nombre del Capítulo</td>
+        <td class="number-cell" th:text="${#numbers.formatDecimal(totalAmount, 1, 'POINT', 2, 'COMMA')}">0.00</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="total-section">
+    <span>VALOR TOTAL DE LA PROPUESTA: </span>
+    <span th:text="${currency} + ' ' + ${#numbers.formatDecimal(totalAmount, 1, 'POINT', 2, 'COMMA')}">USD 0.00</span>
+  </div>
+
+  <div class="footer">
+    <p>Documento oficial emitido por FORZE. Válido según términos y condiciones.</p>
+  </div>
+</body>
+</html>

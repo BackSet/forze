@@ -4,13 +4,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.Instant;
 
-import com.backset.forze.ForzeApplication;
+import com.backset.forze.TestBudgetingExcludedConfiguration;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
 @SpringBootTest(
-		classes = ForzeApplication.class,
+		classes = TestBudgetingExcludedConfiguration.class,
 		properties = {
 				"debug=false",
 				"forze.identity.enabled=false",

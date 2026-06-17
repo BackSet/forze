@@ -110,4 +110,8 @@ public class PriceHistory {
 	public LocalDate validUntil() {
 		return validUntil;
 	}
+
+	public UUID organizationId() {
+		return organizationId;
+	}
 }

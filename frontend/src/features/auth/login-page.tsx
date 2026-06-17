@@ -34,6 +34,7 @@ export function LoginPage() {
     setServerError(null)
     try {
       await login(values)
+      toast.success('Sesion autenticada')
       await navigate({ to: '/app' })
     }
     catch (error) {

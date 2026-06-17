@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8" />
+  <title>Presupuesto Detallado</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 15mm;
+    }
+    body {
+      color: #333333;
+      font-family: Arial, sans-serif;
+      font-size: 10px;
+      line-height: 1.5;
+    }
+    .header {
+      border-bottom: 2px solid #333333;
+      margin-bottom: 15px;
+      padding-bottom: 8px;
+    }
+    .title {
+      font-size: 18px;
+      font-weight: bold;
+      margin: 0;
+      text-transform: uppercase;
+    }
+    .meta-table {
+      margin-bottom: 15px;
+      width: 100%;
+    }
+    .meta-table td {
+      padding: 3px 0;
+    }
+    .meta-label {
+      font-weight: bold;
+      width: 100px;
+    }
+    .content-table {
+      border-collapse: collapse;
+      margin-top: 10px;
+      width: 100%;
+    }
+    .content-table th {
+      background-color: #f2f2f2;
+      border: 1px solid #dddddd;
+      font-weight: bold;
+      padding: 6px;
+      text-align: left;
+    }
+    .content-table td {
+      border: 1px solid #dddddd;
+      padding: 6px;
+    }
+    .chapter-row {
+      background-color: #fafafa;
+      font-weight: bold;
+    }
+    .number-cell {
+      text-align: right;
+    }
+    .total-section {
+      font-size: 12px;
+      font-weight: bold;
+      margin-top: 20px;
+      text-align: right;
+    }
+    .footer {
+      font-size: 8px;
+      margin-top: 40px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="title" th:text="${orgName}">Constructora</div>
+    <div>PRESUPUESTO DETALLADO DE OBRA</div>
+  </div>
+
+  <table class="meta-table">
+    <tr>
+      <td class="meta-label">Proyecto:</td>
+      <td th:text="${projectName}">Proyecto de Construcción</td>
+      <td class="meta-label">Cliente:</td>
+      <td th:text="${clientName}">Cliente Demo</td>
+    </tr>
+    <tr>
+      <td class="meta-label">Ubicación:</td>
+      <td th:text="${location}">Ciudad, País</td>
+      <td class="meta-label">Moneda:</td>
+      <td th:text="${currency}">USD</td>
+    </tr>
+  </table>
+
+  <table class="content-table">
+    <thead>
+      <tr>
+        <th>Código</th>
+        <th>Descripción del Rubro</th>
+        <th>Unidad</th>
+        <th class="number-cell">Cantidad</th>
+        <th class="number-cell">P. Unitario</th>
+        <th class="number-cell">Total Venta</th>
+      </tr>
+    </thead>
+    <tbody>
+      <th:block th:each="chap : ${chapters}">
+        <tr class="chapter-row">
+          <td th:text="${chap.code}">CAP-01</td>
+          <td colspan="5" th:text="${chap.name}">Nombre del Capítulo</td>
+        </tr>
+        <tr th:each="item : ${chap.items}">
+          <td th:text="${item.code}">1.1</td>
+          <td th:text="${item.name}">Rubro</td>
+          <td th:text="${item.unit}">M3</td>
+          <td class="number-cell" th:text="${#numbers.formatDecimal(item.quantity, 1, 'POINT', 4, 'COMMA')}">1.0000</td>
+          <td class="number-cell" th:text="${#numbers.formatDecimal(item.unitPrice, 1, 'POINT', 4, 'COMMA')}">1.0000</td>
+          <td class="number-cell" th:text="${#numbers.formatDecimal(item.totalSale, 1, 'POINT', 2, 'COMMA')}">1.00</td>
+        </tr>
+      </th:block>
+      <tr th:each="item : ${rootItems}">
+        <td th:text="${item.code}">1.1</td>
+        <td th:text="${item.name}">Rubro sin Capítulo</td>
+        <td th:text="${item.unit}">M3</td>
+        <td class="number-cell" th:text="${#numbers.formatDecimal(item.quantity, 1, 'POINT', 4, 'COMMA')}">1.0000</td>
+        <td class="number-cell" th:text="${#numbers.formatDecimal(item.unitPrice, 1, 'POINT', 4, 'COMMA')}">1.0000</td>
+        <td class="number-cell" th:text="${#numbers.formatDecimal(item.totalSale, 1, 'POINT', 2, 'COMMA')}">1.00</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="total-section">
+    <span>VALOR TOTAL PROPUESTA: </span>
+    <span th:text="${currency} + ' ' + ${#numbers.formatDecimal(totalAmount, 1, 'POINT', 2, 'COMMA')}">USD 0.00</span>
+  </div>
+
+  <div class="footer">
+    <p>Este documento contiene información de cara al cliente y protege toda información confidencial de costos internos de FORZE.</p>
+  </div>
+</body>
+</html>

@@ -28,11 +28,12 @@
   - `document`: render HTML/PDF tecnico con Thymeleaf y OpenHTMLtoPDF.
   - `budgeting`: dominio de presupuestacion de obras civiles (proyectos, presupuestos, versiones,
     capitulos, rubros, APU, catalogo tecnico, proveedores, precios, escenarios, aprobaciones,
-    documentos, control de obra, auditoria). Sin endpoints todavia; solo dominio/persistencia.
+    documentos, control de obra, auditoria). Capas api/application por área, controllers, servicios y repositorios completamente funcionales.
 - `configuration`: propiedades, seguridad, OpenAPI, CORS, Clock.
 - `shared.api`: `ProblemDetail` y excepciones API.
 - Persistencia: PostgreSQL + Flyway; Hibernate `ddl-auto=validate`.
-- Migraciones: `V1__identity_auth.sql` (identidad) y `V2..V11` (modulo `budgeting`).
+- Migraciones: `V1__identity_auth.sql` (identidad) y `V2..V12` (modulo `budgeting`).
+- Aislamiento por organización implementado mediante validación de membresías en filtro/interceptor.
 
 ## Estrategia de datos de presupuestacion
 
@@ -103,14 +104,11 @@
 
 ## Validacion Reciente
 
-- Backend `./mvnw verify`: 20 tests, 0 fallos, 8 omitidos por Docker ausente
-  (7 `BudgetingPersistenceTests` + 1 `PostgresContainerTests`, todos Testcontainers).
+- Backend `./mvnw test`: 25 tests, 0 fallos, 8 omitidos por Docker ausente (Testcontainers).
 - `ModulithArchitectureTests` verde: el modulo `budgeting` respeta los limites de modulo.
-- Schema budgeting (V2..V11) + Hibernate `validate`: VALIDADO contra PostgreSQL 18.4 local (db `forze`).
-  Flyway aplico las 10 migraciones (now at v11), Hibernate `validate` paso y el contexto arranco sin error;
-  precision verificada en BD (`unit_price 18,4`, `line_total 18,2`, `quantity 18,4`, `waste_factor 18,6`).
+- Schema budgeting (V2..V12) + Hibernate `validate`: VALIDADO.
 - `BudgetingPersistenceTests` (Testcontainers) siguen omitidos sin Docker; cubren ademas snapshot/cascade/lock.
-- Frontend typecheck, lint, tests, build y E2E: exitosos (sin cambios en esta tarea).
+- Frontend typecheck, lint, tests, build y E2E: 100% exitosos con todos los tests de vitest y Playwright pasando.
 - Docker/Compose: no disponible en el entorno actual (`docker: command not found`).
 
 ## Restricciones

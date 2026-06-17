@@ -9,4 +9,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface AuditLogEntryRepository extends JpaRepository<AuditLogEntry, UUID> {
 
 	List<AuditLogEntry> findByEntityTypeAndEntityId(String entityType, UUID entityId);
+
+	List<AuditLogEntry> findByOrganizationIdOrderByOccurredAtDesc(UUID organizationId);
 }

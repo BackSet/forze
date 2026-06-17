@@ -152,4 +152,16 @@ public class Insumo {
 	public String referencePriceCurrency() {
 		return referencePriceCurrency;
 	}
+
+	public String description() {
+		return description;
+	}
+
+	public String brand() {
+		return brand;
+	}
+
+	public String specification() {
+		return specification;
+	}
 }

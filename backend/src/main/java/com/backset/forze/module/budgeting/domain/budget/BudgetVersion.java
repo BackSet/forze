@@ -228,4 +228,16 @@ public class BudgetVersion {
 	public long version() {
 		return version;
 	}
+
+	public LocalDate validUntil() {
+		return validUntil;
+	}
+
+	public String description() {
+		return description;
+	}
+
+	public UUID taxConfigId() {
+		return taxConfigId;
+	}
 }

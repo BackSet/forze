@@ -27,7 +27,10 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
+
 @Configuration
+@EnableMethodSecurity
 class SecurityConfiguration {
 
 	@Bean
@@ -46,9 +49,12 @@ class SecurityConfiguration {
 						.requestMatchers(HttpMethod.POST, "/api/auth/login", "/api/auth/refresh", "/api/auth/logout").permitAll()
 						.requestMatchers(HttpMethod.GET, "/actuator/health", "/actuator/info", "/v3/api-docs", "/v3/api-docs/**").permitAll()
 						.requestMatchers(HttpMethod.GET, "/api/auth/me").authenticated()
-						.anyRequest().denyAll());
+						.anyRequest().authenticated());
 		if (applicationContext.containsBean("jwtAuthenticationFilter")) {
 			configured.addFilterBefore(applicationContext.getBean("jwtAuthenticationFilter", OncePerRequestFilter.class), UsernamePasswordAuthenticationFilter.class);
+		}
+		if (applicationContext.containsBean("tenantFilter")) {
+			configured.addFilterAfter(applicationContext.getBean("tenantFilter", OncePerRequestFilter.class), UsernamePasswordAuthenticationFilter.class);
 		}
 		return configured.build();
 	}

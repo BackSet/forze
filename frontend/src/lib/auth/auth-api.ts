@@ -28,12 +28,13 @@ async function requestLoginAccessToken(body: LoginInput, signal?: AbortSignal) {
   const timeout = timeoutSignal(signal)
   try {
     const response = await fetchClient.POST('/api/auth/login', { body, signal: timeout.signal })
+    const { data, error } = response as { data?: { accessToken?: string }; error?: unknown }
 
-    if (response.error) {
-      throw normalizeApiError(response.error)
+    if (error) {
+      throw normalizeApiError(error)
     }
 
-    const accessToken = response.data?.accessToken
+    const accessToken = data?.accessToken
     if (!accessToken) {
       throw new ApiError(500, 'La respuesta de autenticacion no incluyo access token.')
     }
@@ -50,12 +51,13 @@ async function requestRefreshAccessToken() {
   const timeout = timeoutSignal()
   try {
     const response = await fetchClient.POST('/api/auth/refresh', { signal: timeout.signal })
+    const { data, error } = response as { data?: { accessToken?: string }; error?: unknown }
 
-    if (response.error) {
-      throw normalizeApiError(response.error)
+    if (error) {
+      throw normalizeApiError(error)
     }
 
-    const accessToken = response.data?.accessToken
+    const accessToken = data?.accessToken
     if (!accessToken) {
       throw new ApiError(500, 'La respuesta de autenticacion no incluyo access token.')
     }
@@ -103,16 +105,18 @@ export async function loadCurrentUser(signal?: AbortSignal): Promise<SessionUser
       response = await fetchClient.GET('/api/auth/me', { signal: timeout.signal })
     }
 
-    if (response.error) {
-      throw normalizeApiError(response.error)
+    const { data, error } = response as { data?: SessionUser; error?: unknown }
+
+    if (error) {
+      throw normalizeApiError(error)
     }
 
-    if (!response.data) {
+    if (!data) {
       throw new ApiError(500, 'La respuesta de sesion esta vacia.')
     }
 
-    useSessionStore.getState().setUser(response.data)
-    return response.data
+    useSessionStore.getState().setUser(data)
+    return data
   }
   finally {
     timeout.clear()

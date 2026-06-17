@@ -133,4 +133,16 @@ public class RubroMaestro {
 	public UUID baseApuId() {
 		return baseApuId;
 	}
+
+	public String description() {
+		return description;
+	}
+
+	public String specification() {
+		return specification;
+	}
+
+	public String keywords() {
+		return keywords;
+	}
 }

@@ -157,4 +157,16 @@ public class Scenario {
 	public RiskLevel risk() {
 		return risk;
 	}
+
+	public BigDecimal utilityRate() {
+		return utilityRate;
+	}
+
+	public BigDecimal indirectRate() {
+		return indirectRate;
+	}
+
+	public BigDecimal contingencyRate() {
+		return contingencyRate;
+	}
 }

@@ -16,6 +16,10 @@ fetchClient.use({
     if (token) {
       request.headers.set('Authorization', `Bearer ${token}`)
     }
+    const orgId = useSessionStore.getState().activeOrganizationId
+    if (orgId) {
+      request.headers.set('X-Organization-Id', orgId)
+    }
     return request
   },
 })

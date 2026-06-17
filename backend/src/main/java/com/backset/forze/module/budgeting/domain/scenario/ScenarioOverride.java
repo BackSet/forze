@@ -93,4 +93,12 @@ public class ScenarioOverride {
 	public BigDecimal unitPrice() {
 		return unitPrice;
 	}
+
+	public BigDecimal yield() {
+		return yield;
+	}
+
+	public BigDecimal wasteFactor() {
+		return wasteFactor;
+	}
 }
