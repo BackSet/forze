@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
+import com.backset.forze.module.budgeting.audit.application.AuditService;
 import com.backset.forze.module.budgeting.domain.approval.ApprovalComment;
 import com.backset.forze.module.budgeting.domain.approval.ApprovalRequest;
 import com.backset.forze.module.budgeting.domain.budget.BudgetStatus;
@@ -23,15 +24,18 @@ public class ApprovalService {
 	private final ApprovalRequestRepository requestRepository;
 	private final ApprovalCommentRepository commentRepository;
 	private final BudgetVersionRepository versionRepository;
+	private final AuditService auditService;
 
 	public ApprovalService(
 			ApprovalRequestRepository requestRepository,
 			ApprovalCommentRepository commentRepository,
-			BudgetVersionRepository versionRepository
+			BudgetVersionRepository versionRepository,
+			AuditService auditService
 	) {
 		this.requestRepository = requestRepository;
 		this.commentRepository = commentRepository;
 		this.versionRepository = versionRepository;
+		this.auditService = auditService;
 	}
 
 	@Transactional(readOnly = true)
@@ -57,11 +61,15 @@ public class ApprovalService {
 			throw new ApiException(HttpStatus.BAD_REQUEST, "No se puede enviar a aprobacion una version NO_VIABLE.");
 		}
 
+		String previousStatus = version.status().name();
 		version.changeStatus(BudgetStatus.PENDIENTE_APROBACION);
 		versionRepository.save(version);
 
 		ApprovalRequest request = new ApprovalRequest(UUID.randomUUID(), versionId, userId, Instant.now());
-		return requestRepository.save(request);
+		ApprovalRequest saved = requestRepository.save(request);
+		auditService.log(orgId, userId, "SUBMIT_APPROVAL", "BudgetVersion", versionId,
+				previousStatus, BudgetStatus.PENDIENTE_APROBACION.name(), "Version enviada a aprobacion", null);
+		return saved;
 	}
 
 	@Transactional
@@ -72,11 +80,15 @@ public class ApprovalService {
 		BudgetVersion version = versionRepository.findById(req.budgetVersionId())
 				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Version de presupuesto no encontrada."));
 
+		String previousStatus = version.status().name();
 		req.approve(userId, Instant.now());
 		version.approve(userId, Instant.now());
 
 		versionRepository.save(version);
-		return requestRepository.save(req);
+		ApprovalRequest saved = requestRepository.save(req);
+		auditService.log(orgId, userId, "APPROVE", "BudgetVersion", version.id(),
+				previousStatus, BudgetStatus.APROBADO.name(), "Version aprobada", null);
+		return saved;
 	}
 
 	@Transactional
@@ -91,6 +103,7 @@ public class ApprovalService {
 		BudgetVersion version = versionRepository.findById(req.budgetVersionId())
 				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Version de presupuesto no encontrada."));
 
+		String previousStatus = version.status().name();
 		req.observe(userId, Instant.now());
 		version.changeStatus(BudgetStatus.REQUIERE_AJUSTES);
 
@@ -100,6 +113,8 @@ public class ApprovalService {
 		ApprovalComment comment = new ApprovalComment(UUID.randomUUID(), requestId, userId, commentText);
 		commentRepository.save(comment);
 
+		auditService.log(orgId, userId, "OBSERVE", "BudgetVersion", version.id(),
+				previousStatus, BudgetStatus.REQUIERE_AJUSTES.name(), "Version observada", null);
 		return req;
 	}
 
@@ -115,6 +130,7 @@ public class ApprovalService {
 		BudgetVersion version = versionRepository.findById(req.budgetVersionId())
 				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Version de presupuesto no encontrada."));
 
+		String previousStatus = version.status().name();
 		req.reject(userId, Instant.now());
 		version.changeStatus(BudgetStatus.RECHAZADO);
 
@@ -124,6 +140,8 @@ public class ApprovalService {
 		ApprovalComment comment = new ApprovalComment(UUID.randomUUID(), requestId, userId, commentText);
 		commentRepository.save(comment);
 
+		auditService.log(orgId, userId, "REJECT", "BudgetVersion", version.id(),
+				previousStatus, BudgetStatus.RECHAZADO.name(), "Version rechazada", null);
 		return req;
 	}
 }
