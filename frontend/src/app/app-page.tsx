@@ -7,6 +7,7 @@ import * as zod from 'zod'
 import { toast } from 'sonner'
 import {
   LogOut,
+  Home,
   Briefcase,
   Package,
   Truck,
@@ -35,6 +36,8 @@ import { logout } from '@/lib/auth/auth-api'
 import { useSessionStore } from '@/lib/auth/session-store'
 
 // Tab components
+import { HomeTab } from './home-tab'
+import { CommandPalette, type PaletteAction } from './command-palette'
 import { OrganizationTab } from './organization-tab'
 import { ClientsProjectsTab } from './clients-projects-tab'
 import { CatalogTab } from './catalog-tab'
@@ -155,15 +158,22 @@ export function AppPage() {
   // Resolve the current user's role/permissions for the active organization.
   const accessQuery = useEffectiveAccess()
 
-  const [activeTab, setActiveTab] = useState<string>('projects')
+  const [activeTab, setActiveTab] = useState<string>('home')
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
   const [selectedBudgetId, setSelectedBudgetId] = useState<string | null>(null)
   const [selectedVersionId, setSelectedVersionId] = useState<string | null>(null)
+  const [paletteOpen, setPaletteOpen] = useState(false)
 
   // Fetch all user organizations
   const orgsQuery = useQuery({
     ...api.queryOptions('get', '/api/organizations'),
     enabled: !!user,
+  })
+
+  // Active-project selector source. Only queried when the user can read projects.
+  const projectsQuery = useQuery({
+    ...api.queryOptions('get', '/api/projects'),
+    enabled: !!activeOrgId && permissions.includes('PROYECTOS_READ'),
   })
 
   // Mutations
@@ -302,6 +312,23 @@ export function AppPage() {
     queryClient.removeQueries()
   }
 
+  // Command palette: navigation to readable surfaces + permitted quick-creates.
+  // Permission filtering happens inside the palette; the backend stays authority.
+  const paletteActions: PaletteAction[] = [
+    { id: 'nav-home', label: 'Ir a Inicio', group: 'Navegación', run: () => setActiveTab('home') },
+    ...NAV_GROUPS.flatMap((g) => g.items).map((item) => ({
+      id: `nav-${item.id}`,
+      label: `Ir a ${item.label}`,
+      group: 'Navegación',
+      permission: item.permission,
+      run: () => setActiveTab(item.id),
+    })),
+    { id: 'create-project', label: 'Crear proyecto', group: 'Crear', permission: 'PROYECTOS_WRITE' as Permission, run: () => setActiveTab('projects') },
+    { id: 'create-budget', label: 'Nuevo presupuesto', group: 'Crear', permission: 'PRESUPUESTOS_WRITE' as Permission, run: () => setActiveTab('budgets') },
+    { id: 'create-supplier', label: 'Agregar proveedor', group: 'Crear', permission: 'PROVEEDORES_WRITE' as Permission, run: () => setActiveTab('suppliers') },
+    { id: 'create-insumo', label: 'Nuevo insumo', group: 'Crear', permission: 'CATALOGOS_WRITE' as Permission, run: () => setActiveTab('catalog') },
+  ]
+
   return (
     <div className="min-h-dvh bg-background text-foreground flex flex-col font-sans">
       {/* Top Header */}
@@ -334,6 +361,30 @@ export function AppPage() {
               ))}
             </select>
           </div>
+
+          {/* Active project selector — shared across budget/editor/scenario surfaces. */}
+          {permissions.includes('PROYECTOS_READ') && (projectsQuery.data?.length ?? 0) > 0 && (
+            <div className="hidden items-center gap-1 md:flex">
+              <span className="text-xs text-muted-foreground font-semibold">Proyecto:</span>
+              <select
+                className="h-8 rounded bg-background border border-border px-2 text-xs font-semibold focus-visible:outline-hidden"
+                value={selectedProjectId ?? ''}
+                onChange={(e) => {
+                  setSelectedProjectId(e.target.value || null)
+                  setSelectedBudgetId(null)
+                  setSelectedVersionId(null)
+                }}
+                aria-label="Seleccionar proyecto activo"
+              >
+                <option value="">Sin proyecto</option>
+                {projectsQuery.data?.map((project) => (
+                  <option key={project.id} value={project.id}>
+                    {project.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-4">
@@ -355,6 +406,17 @@ export function AppPage() {
         {/* Sidebar Navigation */}
         <aside className="w-60 border-r border-border bg-panel flex flex-col p-4 shrink-0 overflow-y-auto">
           <nav className="space-y-1" aria-label="Navegación principal">
+            {/* Inicio is available to any member of the active organization. */}
+            <button
+              onClick={() => setActiveTab('home')}
+              aria-current={activeTab === 'home' ? 'page' : undefined}
+              className={`flex w-full items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
+                activeTab === 'home' ? 'bg-primary text-primary-foreground shadow-xs' : 'text-muted-foreground hover:bg-accent/40'
+              }`}
+            >
+              <Home className="size-4 shrink-0" />
+              Inicio
+            </button>
             {NAV_GROUPS.map((group) => {
               const visible = group.items.filter((item) => permissions.includes(item.permission))
               if (visible.length === 0) return null
@@ -398,6 +460,9 @@ export function AppPage() {
               <Forbidden403 />
             ) : (
               <>
+            {activeTab === 'home' && (
+              <HomeTab permissions={permissions} onNavigate={setActiveTab} onOpenPalette={() => setPaletteOpen(true)} />
+            )}
             {activeTab === 'organization' && <OrganizationTab />}
             {activeTab === 'projects' && <ClientsProjectsTab />}
             {activeTab === 'catalog' && <CatalogTab />}
@@ -423,6 +488,13 @@ export function AppPage() {
           </div>
         </main>
       </div>
+
+      <CommandPalette
+        open={paletteOpen}
+        onOpenChange={setPaletteOpen}
+        permissions={permissions}
+        actions={paletteActions}
+      />
     </div>
   )
 }
