@@ -1,7 +1,6 @@
 package com.backset.forze.module.budgeting.budget.application;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.util.List;
 
 import com.backset.forze.module.budgeting.domain.budget.ItemApu;
@@ -21,13 +20,11 @@ public class ApuCalculationService {
 		if (comp.section() == ComponentSection.MANO_DE_OBRA || comp.section() == ComponentSection.EQUIPOS) {
 			BigDecimal effectiveYield = compYield != null && compYield.compareTo(BigDecimal.ZERO) > 0 ? compYield
 					: (apuYield != null && apuYield.compareTo(BigDecimal.ZERO) > 0 ? apuYield : BigDecimal.ONE);
-			return qty.multiply(price).multiply(BigDecimal.ONE.add(waste))
-					.divide(effectiveYield, 4, RoundingMode.HALF_UP)
-					.setScale(2, RoundingMode.HALF_UP);
+			BigDecimal base = qty.multiply(price).multiply(BigDecimal.ONE.add(waste));
+			return BudgetRounding.money(BudgetRounding.divideUnit(base, effectiveYield));
 		}
 		else {
-			return qty.multiply(price).multiply(BigDecimal.ONE.add(waste))
-					.setScale(2, RoundingMode.HALF_UP);
+			return BudgetRounding.money(qty.multiply(price).multiply(BigDecimal.ONE.add(waste)));
 		}
 	}
 
@@ -39,6 +36,6 @@ public class ApuCalculationService {
 			BigDecimal lineTotal = calculateComponentLineTotal(comp, apuYield);
 			total = total.add(lineTotal);
 		}
-		return total.setScale(4, RoundingMode.HALF_UP);
+		return BudgetRounding.unit(total);
 	}
 }

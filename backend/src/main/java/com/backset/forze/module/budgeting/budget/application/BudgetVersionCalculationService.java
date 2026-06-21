@@ -1,7 +1,6 @@
 package com.backset.forze.module.budgeting.budget.application;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.util.List;
 import java.util.UUID;
 
@@ -109,7 +108,7 @@ public class BudgetVersionCalculationService {
 
 		BigDecimal margin = BigDecimal.ZERO;
 		if (totalSale.compareTo(BigDecimal.ZERO) > 0) {
-			margin = totalSale.subtract(totalCost).divide(totalSale, 4, RoundingMode.HALF_UP);
+			margin = BudgetRounding.divideUnit(totalSale.subtract(totalCost), totalSale);
 		}
 
 		BudgetVersion temp = new BudgetVersion(version.id(), version.budgetId(), version.versionNumber());

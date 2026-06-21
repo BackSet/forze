@@ -1,7 +1,6 @@
 package com.backset.forze.module.budgeting.budget.application;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 
 import com.backset.forze.module.budgeting.domain.budget.BudgetItem;
 import org.springframework.stereotype.Service;
@@ -13,7 +12,7 @@ public class BudgetItemCalculationService {
 		BigDecimal qty = item.quantity() != null ? item.quantity() : BigDecimal.ZERO;
 		BigDecimal unitCost = item.unitCost() != null ? item.unitCost() : BigDecimal.ZERO;
 
-		BigDecimal totalCost = qty.multiply(unitCost).setScale(2, RoundingMode.HALF_UP);
+		BigDecimal totalCost = BudgetRounding.money(qty.multiply(unitCost));
 
 		BigDecimal unitPrice = item.unitPrice();
 		if (!item.priceLocked() || unitPrice == null) {
@@ -28,14 +27,14 @@ public class BudgetItemCalculationService {
 				sumRates = sumRates.add(utilityRate);
 			}
 
-			unitPrice = unitCost.multiply(BigDecimal.ONE.add(sumRates)).setScale(4, RoundingMode.HALF_UP);
+			unitPrice = BudgetRounding.unit(unitCost.multiply(BigDecimal.ONE.add(sumRates)));
 		}
 
-		BigDecimal totalSale = qty.multiply(unitPrice).setScale(2, RoundingMode.HALF_UP);
+		BigDecimal totalSale = BudgetRounding.money(qty.multiply(unitPrice));
 
 		BigDecimal margin = BigDecimal.ZERO;
 		if (unitPrice.compareTo(BigDecimal.ZERO) > 0) {
-			margin = unitPrice.subtract(unitCost).divide(unitPrice, 4, RoundingMode.HALF_UP);
+			margin = BudgetRounding.divideUnit(unitPrice.subtract(unitCost), unitPrice);
 		}
 
 		item.recordPricing(unitCost, unitPrice, totalCost, totalSale, margin);

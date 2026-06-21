@@ -1,7 +1,6 @@
 package com.backset.forze.module.budgeting.budget.application;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -204,6 +203,31 @@ public class BudgetService {
 		return savedVersion;
 	}
 
+	/**
+	 * Enforces version immutability for the snapshot tree (chapters, items, APU, measurements).
+	 * An {@code APROBADO} version is a historical snapshot and must never be mutated; only
+	 * {@link #copyVersion} produces a fresh editable copy.
+	 */
+	private void requireEditableVersion(UUID versionId) {
+		BudgetVersion version = versionRepository.findById(versionId)
+				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Version de presupuesto no encontrada."));
+		if (version.isApproved()) {
+			throw new ApiException(HttpStatus.BAD_REQUEST, "La version aprobada es inmutable y no puede modificarse.");
+		}
+	}
+
+	private void requireEditableVersionForItem(UUID itemId) {
+		BudgetItem item = itemRepository.findById(itemId)
+				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Rubro de presupuesto no encontrado."));
+		requireEditableVersion(item.budgetVersionId());
+	}
+
+	private void requireEditableVersionForApu(UUID apuId) {
+		ItemApu apu = itemApuRepository.findById(apuId)
+				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "APU no encontrado."));
+		requireEditableVersionForItem(apu.budgetItemId());
+	}
+
 	// Chapters
 	@Transactional(readOnly = true)
 	public List<Chapter> getChapters(UUID versionId) {
@@ -212,6 +236,7 @@ public class BudgetService {
 
 	@Transactional
 	public Chapter createChapter(UUID versionId, String name, UUID parentId) {
+		requireEditableVersion(versionId);
 		List<Chapter> existing = chapterRepository.findByBudgetVersionIdOrderByPosition(versionId);
 		int pos = existing.isEmpty() ? 1 : existing.get(existing.size() - 1).position() + 1;
 
@@ -230,6 +255,7 @@ public class BudgetService {
 
 	@Transactional
 	public BudgetItem addRubroToVersion(UUID orgId, UUID versionId, UUID rubroId, UUID chapterId, BigDecimal quantity) {
+		requireEditableVersion(versionId);
 		RubroMaestro rubro = catalogService.getRubro(orgId, rubroId);
 		List<BudgetItem> existing = itemRepository.findByBudgetVersionIdOrderByPosition(versionId);
 		int position = existing.isEmpty() ? 1 : existing.get(existing.size() - 1).position() + 1;
@@ -262,6 +288,7 @@ public class BudgetService {
 	public BudgetItem updateItemQuantity(UUID orgId, UUID itemId, BigDecimal quantity) {
 		BudgetItem item = itemRepository.findById(itemId)
 				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Rubro de presupuesto no encontrado."));
+		requireEditableVersion(item.budgetVersionId());
 		item.changeQuantity(quantity);
 		return itemRepository.save(item);
 	}
@@ -270,6 +297,7 @@ public class BudgetService {
 	public void deleteItem(UUID orgId, UUID itemId) {
 		BudgetItem item = itemRepository.findById(itemId)
 				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Rubro de presupuesto no encontrado."));
+		requireEditableVersion(item.budgetVersionId());
 		itemRepository.delete(item);
 	}
 
@@ -283,6 +311,7 @@ public class BudgetService {
 	public ItemApu updateItemApuYield(UUID orgId, UUID apuId, BigDecimal yield) {
 		ItemApu apu = itemApuRepository.findById(apuId)
 				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "APU no encontrado."));
+		requireEditableVersionForItem(apu.budgetItemId());
 		apu.changeYield(yield);
 		return itemApuRepository.save(apu);
 	}
@@ -294,6 +323,7 @@ public class BudgetService {
 
 	@Transactional
 	public ItemApuComponent addComponentToItemApu(UUID orgId, UUID apuId, AddComponentCmd cmd) {
+		requireEditableVersionForApu(apuId);
 		List<ItemApuComponent> existing = itemApuComponentRepository.findByItemApuIdOrderByPosition(apuId);
 		int position = existing.isEmpty() ? 1 : existing.get(existing.size() - 1).position() + 1;
 
@@ -306,6 +336,7 @@ public class BudgetService {
 	public ItemApuComponent updateItemApuComponent(UUID orgId, UUID componentId, AddComponentCmd cmd) {
 		ItemApuComponent comp = itemApuComponentRepository.findById(componentId)
 				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Componente de APU no encontrado."));
+		requireEditableVersionForApu(comp.itemApuId());
 
 		ItemApuComponent updated = new ItemApuComponent(componentId, comp.itemApuId(), cmd.section(), cmd.unitId(), cmd.quantity(), cmd.unitPrice(), comp.position());
 		updated.describe(cmd.insumoId(), cmd.description(), cmd.yield(), cmd.wasteFactor(), comp.priceSource());
@@ -316,6 +347,7 @@ public class BudgetService {
 	public void removeItemApuComponent(UUID orgId, UUID componentId) {
 		ItemApuComponent comp = itemApuComponentRepository.findById(componentId)
 				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Componente de APU no encontrado."));
+		requireEditableVersionForApu(comp.itemApuId());
 		itemApuComponentRepository.delete(comp);
 	}
 
@@ -327,6 +359,7 @@ public class BudgetService {
 
 	@Transactional
 	public Measurement addMeasurement(UUID orgId, UUID itemId, AddMeasurementCmd cmd) {
+		requireEditableVersionForItem(itemId);
 		List<Measurement> existing = measurementRepository.findByBudgetItemIdOrderByPosition(itemId);
 		int position = existing.isEmpty() ? 1 : existing.get(existing.size() - 1).position() + 1;
 
@@ -342,14 +375,36 @@ public class BudgetService {
 		if (cmd.factor() != null) result = result.multiply(cmd.factor());
 
 		measurement.recordResult(cmd.formula(), result, cmd.notes());
-		return measurementRepository.save(measurement);
+		Measurement saved = measurementRepository.save(measurement);
+		recomputeItemQuantityFromMeasurements(itemId);
+		return saved;
 	}
 
 	@Transactional
 	public void deleteMeasurement(UUID orgId, UUID measurementId) {
 		Measurement measurement = measurementRepository.findById(measurementId)
 				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Medicion no encontrada."));
+		UUID itemId = measurement.budgetItemId();
+		requireEditableVersionForItem(itemId);
 		measurementRepository.delete(measurement);
+		recomputeItemQuantityFromMeasurements(itemId);
+	}
+
+	/**
+	 * Structured measurements feed the budget item quantity: the item quantity is
+	 * the sum of its measurement results. Recomputed whenever measurements change
+	 * so the takeoff (computo metrico) stays the source of truth for the quantity.
+	 */
+	private void recomputeItemQuantityFromMeasurements(UUID itemId) {
+		List<Measurement> all = measurementRepository.findByBudgetItemIdOrderByPosition(itemId);
+		BigDecimal total = all.stream()
+				.map(Measurement::result)
+				.filter(r -> r != null)
+				.reduce(BigDecimal.ZERO, BigDecimal::add);
+		BudgetItem item = itemRepository.findById(itemId)
+				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Rubro de presupuesto no encontrado."));
+		item.changeQuantity(total);
+		itemRepository.save(item);
 	}
 
 	// Risk management
@@ -466,10 +521,10 @@ public class BudgetService {
 					}
 					apuProposedUnitCost = apuProposedUnitCost.add(proposedLineTotal);
 				}
-				itemProposedCost = apuProposedUnitCost.setScale(4, RoundingMode.HALF_UP);
+				itemProposedCost = BudgetRounding.unit(apuProposedUnitCost);
 			}
 
-			BigDecimal proposedItemCost = item.quantity().multiply(itemProposedCost).setScale(2, RoundingMode.HALF_UP);
+			BigDecimal proposedItemCost = BudgetRounding.money(item.quantity().multiply(itemProposedCost));
 			proposedVersionTotalCost = proposedVersionTotalCost.add(proposedItemCost);
 		}
 

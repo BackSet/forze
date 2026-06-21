@@ -1,12 +1,12 @@
 package com.backset.forze.module.budgeting.scenario.application;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import com.backset.forze.module.budgeting.budget.application.BudgetRounding;
 import com.backset.forze.module.budgeting.domain.budget.BudgetItem;
 import com.backset.forze.module.budgeting.domain.budget.BudgetVersion;
 import com.backset.forze.module.budgeting.domain.budget.ItemApu;
@@ -93,19 +93,17 @@ public class ScenarioCalculationService {
 					BigDecimal compYield = over != null && over.yield() != null ? over.yield() : comp.yield();
 
 					BigDecimal lineTotal;
+					BigDecimal lineBase = qty.multiply(price).multiply(BigDecimal.ONE.add(waste));
 					if (comp.section() == ComponentSection.MANO_DE_OBRA || comp.section() == ComponentSection.EQUIPOS) {
 						BigDecimal effectiveYield = compYield != null && compYield.compareTo(BigDecimal.ZERO) > 0 ? compYield : apuYield;
-						lineTotal = qty.multiply(price).multiply(BigDecimal.ONE.add(waste))
-								.divide(effectiveYield, 4, RoundingMode.HALF_UP)
-								.setScale(2, RoundingMode.HALF_UP);
+						lineTotal = BudgetRounding.money(BudgetRounding.divideUnit(lineBase, effectiveYield));
 					}
 					else {
-						lineTotal = qty.multiply(price).multiply(BigDecimal.ONE.add(waste))
-								.setScale(2, RoundingMode.HALF_UP);
+						lineTotal = BudgetRounding.money(lineBase);
 					}
 					apuCost = apuCost.add(lineTotal);
 				}
-				unitCost = apuCost.setScale(4, RoundingMode.HALF_UP);
+				unitCost = BudgetRounding.unit(apuCost);
 			}
 
 			if (unitCost == null) {
@@ -113,7 +111,7 @@ public class ScenarioCalculationService {
 			}
 
 			BigDecimal itemQty = item.quantity() != null ? item.quantity() : BigDecimal.ZERO;
-			BigDecimal itemCost = itemQty.multiply(unitCost).setScale(2, RoundingMode.HALF_UP);
+			BigDecimal itemCost = BudgetRounding.money(itemQty.multiply(unitCost));
 
 			BigDecimal unitPrice = item.unitPrice();
 			if (!item.priceLocked() || unitPrice == null) {
@@ -128,10 +126,10 @@ public class ScenarioCalculationService {
 					sumRates = sumRates.add(utility);
 				}
 
-				unitPrice = unitCost.multiply(BigDecimal.ONE.add(sumRates)).setScale(4, RoundingMode.HALF_UP);
+				unitPrice = BudgetRounding.unit(unitCost.multiply(BigDecimal.ONE.add(sumRates)));
 			}
 
-			BigDecimal itemSale = itemQty.multiply(unitPrice).setScale(2, RoundingMode.HALF_UP);
+			BigDecimal itemSale = BudgetRounding.money(itemQty.multiply(unitPrice));
 
 			totalCost = totalCost.add(itemCost);
 			totalSale = totalSale.add(itemSale);
@@ -139,7 +137,7 @@ public class ScenarioCalculationService {
 
 		BigDecimal margin = BigDecimal.ZERO;
 		if (totalSale.compareTo(BigDecimal.ZERO) > 0) {
-			margin = totalSale.subtract(totalCost).divide(totalSale, 4, RoundingMode.HALF_UP);
+			margin = BudgetRounding.divideUnit(totalSale.subtract(totalCost), totalSale);
 		}
 
 		scenario.recordComparison(totalCost, totalSale, margin, scenario.risk());
