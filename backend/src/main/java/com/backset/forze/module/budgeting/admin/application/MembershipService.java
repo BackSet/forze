@@ -3,6 +3,7 @@ package com.backset.forze.module.budgeting.admin.application;
 import java.util.List;
 import java.util.UUID;
 
+import com.backset.forze.module.budgeting.audit.application.AuditService;
 import com.backset.forze.module.budgeting.domain.admin.Membership;
 import com.backset.forze.module.budgeting.domain.admin.MembershipRole;
 import com.backset.forze.module.budgeting.infrastructure.MembershipRepository;
@@ -22,12 +23,14 @@ public class MembershipService {
 	private final MembershipRepository membershipRepository;
 	private final UserAccountRepository userAccountRepository;
 	private final RoleRepository roleRepository;
+	private final AuditService auditService;
 
 	public MembershipService(MembershipRepository membershipRepository, UserAccountRepository userAccountRepository,
-			RoleRepository roleRepository) {
+			RoleRepository roleRepository, AuditService auditService) {
 		this.membershipRepository = membershipRepository;
 		this.userAccountRepository = userAccountRepository;
 		this.roleRepository = roleRepository;
+		this.auditService = auditService;
 	}
 
 	@Transactional(readOnly = true)
@@ -42,7 +45,7 @@ public class MembershipService {
 	}
 
 	@Transactional
-	public Membership addMember(UUID organizationId, String usernameOrEmail, String roleCode) {
+	public Membership addMember(UUID organizationId, UUID actorUserId, String usernameOrEmail, String roleCode) {
 		requireValidRole(organizationId, roleCode);
 
 		UserAccount user = userAccountRepository.findByUsername(usernameOrEmail)
@@ -56,11 +59,14 @@ public class MembershipService {
 		}
 
 		Membership membership = new Membership(UUID.randomUUID(), organizationId, user.id(), roleCode);
-		return membershipRepository.save(membership);
+		Membership saved = membershipRepository.save(membership);
+		auditService.log(organizationId, actorUserId, "ASSIGN_ROLE", "Membership", saved.id(),
+				null, roleCode, "Miembro agregado a la organizacion", null);
+		return saved;
 	}
 
 	@Transactional
-	public Membership updateRole(UUID organizationId, UUID membershipId, String roleCode) {
+	public Membership updateRole(UUID organizationId, UUID actorUserId, UUID membershipId, String roleCode) {
 		requireValidRole(organizationId, roleCode);
 		Membership membership = requireMembership(organizationId, membershipId);
 
@@ -69,12 +75,16 @@ public class MembershipService {
 			throw new ApiException(HttpStatus.BAD_REQUEST, "No se puede degradar al ultimo administrador de la organizacion.");
 		}
 
+		String previousRole = membership.role();
 		membership.changeRole(roleCode);
-		return membershipRepository.save(membership);
+		Membership saved = membershipRepository.save(membership);
+		auditService.log(organizationId, actorUserId, "UPDATE_ROLE", "Membership", saved.id(),
+				previousRole, roleCode, "Rol de miembro actualizado", null);
+		return saved;
 	}
 
 	@Transactional
-	public void removeMember(UUID organizationId, UUID membershipId) {
+	public void removeMember(UUID organizationId, UUID actorUserId, UUID membershipId) {
 		Membership membership = requireMembership(organizationId, membershipId);
 
 		if (ADMIN_ROLE.equals(membership.role()) && isLastAdmin(organizationId)) {
@@ -82,6 +92,8 @@ public class MembershipService {
 		}
 
 		membershipRepository.delete(membership);
+		auditService.log(organizationId, actorUserId, "REMOVE_MEMBER", "Membership", membership.id(),
+				membership.role(), null, "Miembro removido de la organizacion", null);
 	}
 
 	private Membership requireMembership(UUID organizationId, UUID membershipId) {

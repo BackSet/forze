@@ -11,6 +11,7 @@ import { apiErrorMessage } from '@/lib/api/errors'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useSessionStore } from '@/lib/auth/session-store'
+import { usePermission } from '@/lib/auth/permissions'
 
 const addMemberSchema = zod.object({
   usernameOrEmail: zod.string().min(3, 'Debe tener al menos 3 caracteres'),
@@ -30,6 +31,8 @@ type CreateUserFormValues = zod.infer<typeof createUserSchema>
 export function OrganizationTab() {
   const queryClient = useQueryClient()
   const activeOrgId = useSessionStore((state) => state.activeOrganizationId)
+  // UX-only gate: the backend @PreAuthorize('ADMINISTRACION_WRITE') remains the authority.
+  const canWrite = usePermission('ADMINISTRACION_WRITE')
 
   // Members list in organization
   const membersQuery = useQuery({
@@ -185,6 +188,7 @@ export function OrganizationTab() {
             <h2 className="text-lg font-semibold">Miembros de la Organización</h2>
           </div>
 
+          {canWrite && (
           <form onSubmit={addMemberForm.handleSubmit(onAddMember)} className="flex flex-col sm:flex-row gap-2">
             <div className="flex-1">
               <Input
@@ -214,6 +218,7 @@ export function OrganizationTab() {
               Invitar
             </Button>
           </form>
+          )}
 
           {membersQuery.isLoading ? (
             <div className="space-y-2 py-4">
@@ -243,6 +248,7 @@ export function OrganizationTab() {
                         </span>
                       </td>
                       <td className="py-3 text-right">
+                        {canWrite && (
                         <Button
                           variant="ghost"
                           size="icon"
@@ -253,6 +259,7 @@ export function OrganizationTab() {
                         >
                           <Trash2 className="size-4" />
                         </Button>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -276,6 +283,7 @@ export function OrganizationTab() {
             <h2 className="text-lg font-semibold">Administración de Usuarios (Global)</h2>
           </div>
 
+          {canWrite && (
           <form onSubmit={createUserForm.handleSubmit(onCreateUser)} className="grid grid-cols-1 sm:grid-cols-3 gap-2 items-end">
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">Usuario</label>
@@ -314,6 +322,7 @@ export function OrganizationTab() {
               </Button>
             </div>
           </form>
+          )}
 
           {usersQuery.isLoading ? (
             <div className="space-y-2 py-4">
@@ -346,6 +355,7 @@ export function OrganizationTab() {
                         </span>
                       </td>
                       <td className="py-3 text-right">
+                        {canWrite ? (
                         <Button
                           variant="ghost"
                           size="icon"
@@ -359,6 +369,7 @@ export function OrganizationTab() {
                             <ToggleLeft className="size-6 text-muted-foreground" />
                           )}
                         </Button>
+                        ) : null}
                       </td>
                     </tr>
                   ))}
@@ -377,6 +388,7 @@ export function OrganizationTab() {
         </div>
 
         {/* Create custom role */}
+        {canWrite && (
         <div className="rounded-lg border border-border/80 bg-background p-4 space-y-3">
           <p className="text-sm font-semibold">Crear rol personalizado</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -428,6 +440,7 @@ export function OrganizationTab() {
             Crear rol
           </Button>
         </div>
+        )}
 
         {/* Permission matrix */}
         <div className="overflow-x-auto">
@@ -441,7 +454,7 @@ export function OrganizationTab() {
                       <span>{role.name}</span>
                       {role.system ? (
                         <span className="text-[10px] font-normal text-muted-foreground">sistema</span>
-                      ) : (
+                      ) : canWrite ? (
                         <button
                           type="button"
                           onClick={() => deleteRoleMutation.mutate({ params: { path: { id: role.id! } } })}
@@ -451,6 +464,8 @@ export function OrganizationTab() {
                         >
                           <Trash2 className="size-3" /> eliminar
                         </button>
+                      ) : (
+                        <span className="text-[10px] font-normal text-muted-foreground">personalizado</span>
                       )}
                     </div>
                   </th>

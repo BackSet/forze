@@ -41,7 +41,9 @@
   cada organizacion puede crear roles personalizados con su matriz de permisos. ADMINISTRADOR
   (`all_permissions=true`) siempre tiene todos los permisos (incluidos nuevos), no es editable/eliminable y no
   puede degradarse/eliminarse al ultimo administrador. El frontend hace gating por permiso
-  (`usePermission`/`PermissionGate`/menu/403) pero el backend es la autoridad.
+  (`usePermission`/`PermissionGate`/menu/403 y oculta acciones sin `ADMINISTRACION_WRITE`) pero el backend
+  es la autoridad. Los cambios administrativos (membresias, roles, cuentas) quedan auditados via `AuditService`
+  (sin registrar contraseñas ni tokens).
 
 ## Estrategia de datos de presupuestacion
 

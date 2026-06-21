@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
+import com.backset.forze.module.budgeting.audit.application.AuditService;
 import com.backset.forze.module.budgeting.domain.admin.MembershipRole;
 import com.backset.forze.module.budgeting.domain.admin.Permission;
 import com.backset.forze.module.budgeting.domain.admin.Role;
@@ -29,12 +30,14 @@ public class RoleService {
 	private final RoleRepository roleRepository;
 	private final PermissionRepository permissionRepository;
 	private final MembershipRepository membershipRepository;
+	private final AuditService auditService;
 
 	public RoleService(RoleRepository roleRepository, PermissionRepository permissionRepository,
-			MembershipRepository membershipRepository) {
+			MembershipRepository membershipRepository, AuditService auditService) {
 		this.roleRepository = roleRepository;
 		this.permissionRepository = permissionRepository;
 		this.membershipRepository = membershipRepository;
+		this.auditService = auditService;
 	}
 
 	@Transactional(readOnly = true)
@@ -54,7 +57,7 @@ public class RoleService {
 	}
 
 	@Transactional
-	public RoleDto createRole(UUID organizationId, String code, String name, Set<String> permissionCodes) {
+	public RoleDto createRole(UUID organizationId, UUID actorUserId, String code, String name, Set<String> permissionCodes) {
 		String normalizedCode = normalizeCode(code);
 		if (isSystemCode(normalizedCode)) {
 			throw new ApiException(HttpStatus.BAD_REQUEST, "El codigo coincide con un rol del sistema.");
@@ -64,21 +67,28 @@ public class RoleService {
 		}
 		Role role = new Role(UUID.randomUUID(), organizationId, normalizedCode, name, false, false);
 		role.replacePermissions(resolvePermissions(permissionCodes));
-		return toDto(roleRepository.save(role));
+		Role saved = roleRepository.save(role);
+		auditService.log(organizationId, actorUserId, "CREATE", "Role", saved.id(),
+				null, saved.code(), "Rol personalizado creado", null);
+		return toDto(saved);
 	}
 
 	@Transactional
-	public RoleDto updateRole(UUID organizationId, UUID roleId, String name, Set<String> permissionCodes) {
+	public RoleDto updateRole(UUID organizationId, UUID actorUserId, UUID roleId, String name, Set<String> permissionCodes) {
 		Role role = requireCustomRole(organizationId, roleId);
+		String previousName = role.name();
 		if (name != null && !name.isBlank()) {
 			role.rename(name);
 		}
 		role.replacePermissions(resolvePermissions(permissionCodes));
-		return toDto(roleRepository.save(role));
+		Role saved = roleRepository.save(role);
+		auditService.log(organizationId, actorUserId, "UPDATE", "Role", saved.id(),
+				previousName, saved.name(), "Rol personalizado actualizado", null);
+		return toDto(saved);
 	}
 
 	@Transactional
-	public void deleteRole(UUID organizationId, UUID roleId) {
+	public void deleteRole(UUID organizationId, UUID actorUserId, UUID roleId) {
 		Role role = requireCustomRole(organizationId, roleId);
 		boolean assigned = membershipRepository.findByOrganizationId(organizationId).stream()
 				.anyMatch(m -> role.code().equals(m.role()));
@@ -86,6 +96,8 @@ public class RoleService {
 			throw new ApiException(HttpStatus.BAD_REQUEST, "No se puede eliminar un rol asignado a miembros.");
 		}
 		roleRepository.delete(role);
+		auditService.log(organizationId, actorUserId, "DELETE", "Role", roleId,
+				role.code(), null, "Rol personalizado eliminado", null);
 	}
 
 	private Role requireCustomRole(UUID organizationId, UUID roleId) {

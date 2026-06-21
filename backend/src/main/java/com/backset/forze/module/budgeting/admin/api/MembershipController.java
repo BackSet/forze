@@ -8,9 +8,11 @@ import jakarta.validation.constraints.NotBlank;
 
 import com.backset.forze.module.budgeting.admin.application.MembershipService;
 import com.backset.forze.module.budgeting.domain.admin.Membership;
+import com.backset.forze.module.identity.infrastructure.UserPrincipal;
 import com.backset.forze.shared.TenantContext;
 import io.swagger.v3.oas.annotations.Operation;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -41,27 +43,29 @@ public class MembershipController {
 	@PostMapping
 	@Operation(summary = "Add a user to the active organization.")
 	@PreAuthorize("@securityService.hasPermission('ADMINISTRACION_WRITE')")
-	public MembershipDto addMember(@Valid @RequestBody AddMemberRequest request) {
+	public MembershipDto addMember(@Valid @RequestBody AddMemberRequest request,
+			@AuthenticationPrincipal UserPrincipal principal) {
 		UUID orgId = TenantContext.getRequiredTenantId();
-		Membership membership = membershipService.addMember(orgId, request.usernameOrEmail(), request.role());
+		Membership membership = membershipService.addMember(orgId, principal.id(), request.usernameOrEmail(), request.role());
 		return new MembershipDto(membership.id(), membership.organizationId(), membership.userId(), membership.role());
 	}
 
 	@PutMapping("/{id}")
 	@Operation(summary = "Update member role in the active organization.")
 	@PreAuthorize("@securityService.hasPermission('ADMINISTRACION_WRITE')")
-	public MembershipDto updateMemberRole(@PathVariable UUID id, @Valid @RequestBody UpdateMemberRoleRequest request) {
+	public MembershipDto updateMemberRole(@PathVariable UUID id, @Valid @RequestBody UpdateMemberRoleRequest request,
+			@AuthenticationPrincipal UserPrincipal principal) {
 		UUID orgId = TenantContext.getRequiredTenantId();
-		Membership membership = membershipService.updateRole(orgId, id, request.role());
+		Membership membership = membershipService.updateRole(orgId, principal.id(), id, request.role());
 		return new MembershipDto(membership.id(), membership.organizationId(), membership.userId(), membership.role());
 	}
 
 	@DeleteMapping("/{id}")
 	@Operation(summary = "Remove a member from the active organization.")
 	@PreAuthorize("@securityService.hasPermission('ADMINISTRACION_WRITE')")
-	public void removeMember(@PathVariable UUID id) {
+	public void removeMember(@PathVariable UUID id, @AuthenticationPrincipal UserPrincipal principal) {
 		UUID orgId = TenantContext.getRequiredTenantId();
-		membershipService.removeMember(orgId, id);
+		membershipService.removeMember(orgId, principal.id(), id);
 	}
 
 	public record AddMemberRequest(
