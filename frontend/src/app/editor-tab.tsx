@@ -10,6 +10,15 @@ import { api } from '@/lib/api/client'
 import { apiErrorMessage } from '@/lib/api/errors'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { StatusBadge } from '@/components/ui/status-badge'
+import { ConfirmAction } from '@/components/ui/confirm-action'
+
+function viabilityTone(status: string | undefined): 'success' | 'warning' | 'danger' | 'neutral' {
+  if (status === 'VIABLE') return 'success'
+  if (status === 'VIABLE_CON_ALERTAS') return 'warning'
+  if (status === 'NO_VIABLE') return 'danger'
+  return 'neutral'
+}
 
 const chapterSchema = zod.object({
   name: zod.string().min(3, 'Mínimo 3 caracteres').max(200),
@@ -297,9 +306,11 @@ export function EditorTab({ selectedVersionId }: EditorTabProps) {
             </div>
             <div>
               <span className="text-muted-foreground block text-[10px] uppercase font-bold">Viabilidad</span>
-              <span className={`font-bold ${activeVersion.viabilityStatus === 'VIABLE' ? 'text-emerald-500' : 'text-amber-500'}`}>
-                {activeVersion.viabilityStatus || 'Borrador'}
-              </span>
+              <div className="mt-0.5">
+                <StatusBadge tone={viabilityTone(activeVersion.viabilityStatus)}>
+                  {activeVersion.viabilityStatus || 'Borrador'}
+                </StatusBadge>
+              </div>
             </div>
           </div>
           {activeVersion.status !== 'APROBADO' && (
@@ -412,17 +423,18 @@ export function EditorTab({ selectedVersionId }: EditorTabProps) {
                             </div>
 
                             {activeVersion?.status !== 'APROBADO' && (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="size-8 text-muted-foreground hover:text-destructive"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  deleteItemMutation.mutate({ params: { path: { id: item.id! } } })
-                                }}
-                              >
-                                <Trash2 className="size-4" />
-                              </Button>
+                              <span onClick={(e) => e.stopPropagation()}>
+                                <ConfirmAction
+                                  triggerLabel={`Eliminar rubro ${item.name ?? ''}`}
+                                  message="¿Eliminar este rubro de la versión?"
+                                  confirmLabel="Eliminar"
+                                  destructive
+                                  disabled={deleteItemMutation.isPending}
+                                  onConfirm={() => deleteItemMutation.mutate({ params: { path: { id: item.id! } } })}
+                                >
+                                  <Trash2 className="size-4" />
+                                </ConfirmAction>
+                              </span>
                             )}
                           </div>
                         </div>
@@ -512,15 +524,16 @@ export function EditorTab({ selectedVersionId }: EditorTabProps) {
                             <div className="flex items-center gap-2">
                               <span className="font-bold text-primary font-mono">{m.result?.toFixed(4)}</span>
                               {activeVersion?.status !== 'APROBADO' && (
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="size-6 text-muted-foreground hover:text-destructive"
-                                  onClick={() => deleteMeasurementMutation.mutate({ params: { path: { id: m.id! } } })}
+                                <ConfirmAction
+                                  triggerLabel="Eliminar medición"
+                                  message="¿Eliminar esta medición?"
+                                  confirmLabel="Eliminar"
+                                  destructive
                                   disabled={deleteMeasurementMutation.isPending}
+                                  onConfirm={() => deleteMeasurementMutation.mutate({ params: { path: { id: m.id! } } })}
                                 >
                                   <Trash2 className="size-3.5" />
-                                </Button>
+                                </ConfirmAction>
                               )}
                             </div>
                           </div>
@@ -581,15 +594,16 @@ export function EditorTab({ selectedVersionId }: EditorTabProps) {
                             <div className="flex items-center gap-2">
                               <span className="font-bold text-foreground font-mono">${comp.lineTotal?.toFixed(2)}</span>
                               {activeVersion?.status !== 'APROBADO' && (
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="size-6 text-muted-foreground hover:text-destructive"
-                                  onClick={() => deleteApuCompMutation.mutate({ params: { path: { id: comp.id! } } })}
+                                <ConfirmAction
+                                  triggerLabel="Eliminar componente de APU"
+                                  message="¿Eliminar este componente?"
+                                  confirmLabel="Eliminar"
+                                  destructive
                                   disabled={deleteApuCompMutation.isPending}
+                                  onConfirm={() => deleteApuCompMutation.mutate({ params: { path: { id: comp.id! } } })}
                                 >
                                   <Trash2 className="size-3.5" />
-                                </Button>
+                                </ConfirmAction>
                               )}
                             </div>
                           </div>

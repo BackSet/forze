@@ -27,6 +27,20 @@ import { api } from '@/lib/api/client'
 import { apiErrorMessage } from '@/lib/api/errors'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { PageHeader } from '@/components/ui/page-header'
+import { QuickActionsBar } from '@/components/ui/quick-actions-bar'
+import { StatusBadge } from '@/components/ui/status-badge'
+import { Drawer } from '@/components/ui/drawer'
+import { CodeField } from '@/components/ui/code-field'
+import { ConfirmAction } from '@/components/ui/confirm-action'
+
+type ViabilityTone = 'success' | 'warning' | 'danger' | 'neutral'
+function viabilityTone(status: string | undefined): ViabilityTone {
+  if (status === 'VIABLE') return 'success'
+  if (status === 'VIABLE_CON_ALERTAS') return 'warning'
+  if (status === 'NO_VIABLE') return 'danger'
+  return 'neutral'
+}
 
 const budgetSchema = zod.object({
   code: zod.string().min(2, 'Mínimo 2 caracteres').max(60),
@@ -158,7 +172,13 @@ export function BudgetsTab({
       setShowBudgetModal(false)
       budgetForm.reset()
     },
-    onError: (err) => toast.error(apiErrorMessage(err, 'Error al crear presupuesto')),
+    onError: (err) => {
+      const message = apiErrorMessage(err, 'Error al crear presupuesto')
+      toast.error(message)
+      if (/c[oó]digo/i.test(message)) {
+        budgetForm.setError('code', { message })
+      }
+    },
   })
 
   const copyVersionMutation = api.useMutation('post', '/api/budgets/{budgetId}/versions', {
@@ -236,6 +256,19 @@ export function BudgetsTab({
       params: { path: { projectId: selectedProjectId } },
       body: { code: values.code, name: values.name, currencyCode: values.currencyCode }
     })
+  }
+
+  // Budget codes are unique per project; suggest the next one via the typed client.
+  async function generateBudgetCode(): Promise<string> {
+    if (!selectedProjectId) return budgetForm.getValues('code')
+    const current = budgetForm.getValues('code')
+    if (current.trim() && !window.confirm('Ya ingresaste un código. ¿Reemplazarlo por el código generado?')) {
+      return current
+    }
+    const result = await queryClient.fetchQuery(
+      api.queryOptions('get', '/api/projects/{projectId}/budgets/next-code', { params: { path: { projectId: selectedProjectId } } }),
+    )
+    return result.code ?? current
   }
 
   function handleCreateVersion(values: VersionFormValues) {
@@ -392,47 +425,42 @@ export function BudgetsTab({
   }
 
   function handleDeleteRisk(riskId: string) {
-    if (confirm('¿Está seguro de que desea eliminar este riesgo?')) {
-      deleteRiskMutation.mutate({
-        params: { path: { id: riskId } }
-      })
-    }
+    deleteRiskMutation.mutate({ params: { path: { id: riskId } } })
   }
 
   const activeVersion = activeVersionQuery.data
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-border pb-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight font-sans">Presupuestos del Proyecto</h1>
-          <p className="text-sm text-muted-foreground">Administra las revisiones de presupuestos, configura indirectos y calcula costos de obra.</p>
-        </div>
-        <div className="flex gap-2 w-full sm:w-auto">
-          <select
-            className="flex h-9 flex-1 sm:w-64 rounded-md border border-border bg-background px-3 py-1 text-sm shadow-xs focus-visible:outline-hidden"
-            value={selectedProjectId || ''}
-            onChange={(e) => {
-              setSelectedProjectId(e.target.value || null)
-              setSelectedBudgetId(null)
-              setSelectedVersionId(null)
-            }}
-            aria-label="Seleccionar proyecto"
-          >
-            <option value="">Seleccione Proyecto...</option>
-            {projectsQuery.data?.map(p => (
-              <option key={p.id} value={p.id}>[{p.code}] {p.name}</option>
-            ))}
-          </select>
-
-          {selectedProjectId && (
-            <Button size="sm" onClick={() => setShowBudgetModal(true)}>
-              <Plus className="size-4" />
-              Nuevo Presupuesto
-            </Button>
-          )}
-        </div>
-      </div>
+      <PageHeader
+        title="Presupuestos del Proyecto"
+        description="Administra las revisiones de presupuestos, configura indirectos y calcula costos de obra."
+        actions={
+          <QuickActionsBar className="w-full sm:w-auto">
+            <select
+              className="flex h-9 flex-1 sm:w-64 rounded-md border border-border bg-background px-3 py-1 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              value={selectedProjectId || ''}
+              onChange={(e) => {
+                setSelectedProjectId(e.target.value || null)
+                setSelectedBudgetId(null)
+                setSelectedVersionId(null)
+              }}
+              aria-label="Seleccionar proyecto"
+            >
+              <option value="">Seleccione Proyecto...</option>
+              {projectsQuery.data?.map(p => (
+                <option key={p.id} value={p.id}>[{p.code}] {p.name}</option>
+              ))}
+            </select>
+            {selectedProjectId && (
+              <Button size="sm" onClick={() => setShowBudgetModal(true)}>
+                <Plus className="size-4" />
+                Nuevo Presupuesto
+              </Button>
+            )}
+          </QuickActionsBar>
+        }
+      />
 
       {selectedProjectId ? (
         <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
@@ -487,11 +515,7 @@ export function BudgetsTab({
                           <span className="block font-bold">Rev {v.versionNumber}</span>
                           <span className="block text-[10px] text-muted-foreground truncate max-w-36">{v.name}</span>
                         </div>
-                        <span className={`text-[9px] rounded-full px-1.5 py-0.5 font-bold ${
-                          v.status === 'APROBADO' ? 'bg-emerald-500/15 text-emerald-500' : 'bg-secondary text-secondary-foreground'
-                        }`}>
-                          {v.status}
-                        </span>
+                        <StatusBadge tone={v.status === 'APROBADO' ? 'success' : 'neutral'}>{v.status}</StatusBadge>
                       </li>
                     ))}
                     {(!versionsQuery.data || versionsQuery.data.length === 0) && (
@@ -514,7 +538,7 @@ export function BudgetsTab({
                           <span className="text-xs text-muted-foreground font-semibold">Versión Rev {activeVersion.versionNumber}</span>
                           <h2 className="text-lg font-bold">{activeVersion.name}</h2>
                         </div>
-                        <div className="flex gap-2">
+                        <QuickActionsBar aria-label="Acciones de la versión">
                           <Button
                             variant="outline"
                             size="sm"
@@ -554,7 +578,7 @@ export function BudgetsTab({
                             <Edit3 className="size-4" />
                             Editor
                           </Button>
-                        </div>
+                        </QuickActionsBar>
                       </div>
 
                       {/* Financial Card KPI layout */}
@@ -579,11 +603,11 @@ export function BudgetsTab({
                         </div>
                         <div className="border border-border/80 bg-background rounded-lg p-3 text-center">
                           <span className="text-[10px] font-medium text-muted-foreground uppercase">Viabilidad</span>
-                          <span className={`block font-bold text-sm mt-1.5 ${
-                            activeVersion.viabilityStatus === 'VIABLE' ? 'text-emerald-500' : 'text-amber-500 font-semibold'
-                          }`}>
-                            {activeVersion.viabilityStatus || 'PENDIENTE'}
-                          </span>
+                          <div className="mt-1.5 flex justify-center">
+                            <StatusBadge tone={viabilityTone(activeVersion.viabilityStatus)}>
+                              {activeVersion.viabilityStatus || 'PENDIENTE'}
+                            </StatusBadge>
+                          </div>
                         </div>
                       </div>
 
@@ -744,10 +768,16 @@ export function BudgetsTab({
                                             <Edit3 className="size-3" />
                                             <span className="sr-only">Editar</span>
                                           </Button>
-                                          <Button variant="ghost" className="h-6 w-6 p-0 [&_svg]:size-3 text-muted-foreground hover:text-destructive" onClick={() => handleDeleteRisk(risk.id!)}>
+                                          <ConfirmAction
+                                            triggerLabel={`Eliminar riesgo ${risk.description ?? ''}`}
+                                            message="¿Eliminar este riesgo?"
+                                            confirmLabel="Eliminar"
+                                            destructive
+                                            disabled={deleteRiskMutation.isPending}
+                                            onConfirm={() => handleDeleteRisk(risk.id!)}
+                                          >
                                             <Trash2 className="size-3" />
-                                            <span className="sr-only">Eliminar</span>
-                                          </Button>
+                                          </ConfirmAction>
                                         </div>
                                       )}
                                     </div>
@@ -809,38 +839,29 @@ export function BudgetsTab({
       )}
 
       {/* Budget Create Modal */}
-      {showBudgetModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs">
-          <div className="w-full max-w-md bg-panel border border-border p-6 rounded-xl shadow-lg space-y-4 animate-scale-up">
-            <h2 className="text-lg font-bold border-b border-border pb-2">Crear Presupuesto Comercial</h2>
-            <form onSubmit={budgetForm.handleSubmit((v) => handleCreateBudget(v))} className="space-y-4">
-              <div>
-                <label className="text-xs font-semibold text-muted-foreground mb-1 block">Código</label>
-                <Input placeholder="Ej. B-01" {...budgetForm.register('code')} />
-                {budgetForm.formState.errors.code && (
-                  <p className="mt-1 text-xs text-destructive">{budgetForm.formState.errors.code.message}</p>
-                )}
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-muted-foreground mb-1 block">Nombre / Detalle de Presupuesto</label>
-                <Input placeholder="Presupuesto Base de Licitación" {...budgetForm.register('name')} />
-                {budgetForm.formState.errors.name && (
-                  <p className="mt-1 text-xs text-destructive">{budgetForm.formState.errors.name.message}</p>
-                )}
-              </div>
-
-              <div className="flex justify-end gap-2 border-t border-border pt-3">
-                <Button type="button" variant="outline" onClick={() => setShowBudgetModal(false)}>
-                  Cancelar
-                </Button>
-                <Button type="submit" disabled={createBudgetMutation.isPending}>
-                  Crear Presupuesto
-                </Button>
-              </div>
-            </form>
+      <Drawer open={showBudgetModal} onClose={() => setShowBudgetModal(false)} title="Crear presupuesto" side="right" className="w-full max-w-md">
+        <form onSubmit={budgetForm.handleSubmit((v) => handleCreateBudget(v))} className="space-y-4">
+          <CodeField
+            id="budget-code"
+            value={budgetForm.watch('code')}
+            onChange={(value) => budgetForm.setValue('code', value, { shouldValidate: true })}
+            onGenerate={generateBudgetCode}
+            placeholder="Ej. PRE-2026-0001"
+            {...(budgetForm.formState.errors.code?.message ? { error: budgetForm.formState.errors.code.message } : {})}
+          />
+          <div>
+            <label className="text-xs font-semibold text-muted-foreground mb-1 block" htmlFor="budget-name">Nombre / detalle</label>
+            <Input id="budget-name" placeholder="Presupuesto Base de Licitación" {...budgetForm.register('name')} />
+            {budgetForm.formState.errors.name && (
+              <p className="mt-1 text-xs text-destructive">{budgetForm.formState.errors.name.message}</p>
+            )}
           </div>
-        </div>
-      )}
+          <div className="flex justify-end gap-2 border-t border-border pt-3">
+            <Button type="button" variant="outline" onClick={() => setShowBudgetModal(false)}>Cancelar</Button>
+            <Button type="submit" disabled={createBudgetMutation.isPending}>Crear presupuesto</Button>
+          </div>
+        </form>
+      </Drawer>
 
       {/* Version Copy Modal */}
       {showVersionModal && (

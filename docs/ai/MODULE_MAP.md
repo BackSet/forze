@@ -141,6 +141,13 @@ Implementadas todas las capas api/application por área. FKs desacopladas; integ
   `GET /api/projects/next-code` via el cliente tipado (`queryClient.fetchQuery`) y pide confirmacion antes de
   sobrescribir un codigo manual; alta rapida de cliente desde el formulario; archivar con `ConfirmAction`;
   error de codigo duplicado visible en el campo. Sin `document.getElementById` (selects controlados).
+- Presupuestos/Versiones (`app/budgets-tab.tsx`): `PageHeader`; crear presupuesto en `Drawer` con `CodeField`
+  ("Generar" -> `GET /api/projects/{projectId}/budgets/next-code`, codigo unico por proyecto, confirma antes de
+  sobrescribir; duplicado visible en el campo); acciones de version en `QuickActionsBar` (tasas, actualizar
+  precios, calcular, editor, enviar a aprobacion); viabilidad y estado con `StatusBadge` (texto, no solo color);
+  riesgos se eliminan con `ConfirmAction`.
+- Editor (`app/editor-tab.tsx`): viabilidad con `StatusBadge`; eliminar rubro/medicion/componente con
+  `ConfirmAction`; layout `lg:grid-cols-[1fr_380px]` usable en tablet/laptop.
 
 ### Rutas
 
