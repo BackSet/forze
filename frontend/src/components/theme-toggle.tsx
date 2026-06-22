@@ -1,34 +1,39 @@
-import { Moon, Sun } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { Monitor, Moon, Sun } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
+import { useSessionStore } from '@/lib/auth/session-store'
+import { type ThemePreference } from '@/lib/theme'
 
-type Theme = 'light' | 'dark'
+const ORDER: ThemePreference[] = ['light', 'dark', 'system']
 
-function preferredTheme(): Theme {
-  if (typeof window === 'undefined') {
-    return 'light'
-  }
-
-  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+const META: Record<ThemePreference, { label: string; icon: typeof Sun }> = {
+  light: { label: 'Tema claro', icon: Sun },
+  dark: { label: 'Tema oscuro', icon: Moon },
+  system: { label: 'Tema del sistema', icon: Monitor },
 }
 
+/**
+ * Cycles light → dark → system. The preference is persisted (via the session
+ * store) and applied to the document; `system` follows `prefers-color-scheme`.
+ * The current mode is conveyed by both icon and accessible label (not color).
+ */
 export function ThemeToggle() {
-  const [theme, setTheme] = useState<Theme>(() => preferredTheme())
+  const theme = useSessionStore((s) => s.theme)
+  const setTheme = useSessionStore((s) => s.setTheme)
 
-  useEffect(() => {
-    document.documentElement.dataset.theme = theme
-  }, [theme])
+  const { label, icon: Icon } = META[theme]
+  const next = ORDER[(ORDER.indexOf(theme) + 1) % ORDER.length] ?? 'system'
 
   return (
     <Button
       type="button"
       variant="ghost"
       size="icon"
-      aria-label="Cambiar tema"
-      onClick={() => setTheme((current) => (current === 'dark' ? 'light' : 'dark'))}
+      aria-label={`${label} (cambiar a ${META[next].label.toLowerCase()})`}
+      title={label}
+      onClick={() => setTheme(next)}
     >
-      {theme === 'dark' ? <Sun aria-hidden="true" /> : <Moon aria-hidden="true" />}
+      <Icon aria-hidden="true" />
     </Button>
   )
 }

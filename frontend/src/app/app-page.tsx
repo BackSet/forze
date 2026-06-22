@@ -8,6 +8,7 @@ import { toast } from 'sonner'
 import {
   LogOut,
   Home,
+  Menu,
   Briefcase,
   Package,
   Truck,
@@ -31,6 +32,7 @@ import { useEffectiveAccess, type Permission } from '@/lib/auth/permissions'
 import { resolveAccessView, errorStatus } from '@/app/access-state'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Drawer } from '@/components/ui/drawer'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { logout } from '@/lib/auth/auth-api'
 import { useSessionStore } from '@/lib/auth/session-store'
@@ -163,6 +165,7 @@ export function AppPage() {
   const [selectedBudgetId, setSelectedBudgetId] = useState<string | null>(null)
   const [selectedVersionId, setSelectedVersionId] = useState<string | null>(null)
   const [paletteOpen, setPaletteOpen] = useState(false)
+  const [mobileNavOpen, setMobileNavOpen] = useState(false)
 
   // Fetch all user organizations
   const orgsQuery = useQuery({
@@ -329,18 +332,69 @@ export function AppPage() {
     { id: 'create-insumo', label: 'Nuevo insumo', group: 'Crear', permission: 'CATALOGOS_WRITE' as Permission, run: () => setActiveTab('catalog') },
   ]
 
+  // Shared navigation, rendered both in the desktop sidebar and the mobile drawer.
+  function renderNav(onSelect: (tab: string) => void) {
+    const itemClass = (active: boolean) =>
+      `flex w-full items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold transition-all motion-reduce:transition-none ${
+        active ? 'bg-primary text-primary-foreground shadow-xs' : 'text-muted-foreground hover:bg-accent/40'
+      }`
+    return (
+      <nav className="space-y-1" aria-label="Navegación principal">
+        <button onClick={() => onSelect('home')} aria-current={activeTab === 'home' ? 'page' : undefined} className={itemClass(activeTab === 'home')}>
+          <Home className="size-4 shrink-0" />
+          Inicio
+        </button>
+        {NAV_GROUPS.map((group) => {
+          const visible = group.items.filter((item) => permissions.includes(item.permission))
+          if (visible.length === 0) return null
+          return (
+            <div key={group.group}>
+              <div className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider px-3 pt-6 first:pt-0 mb-2">
+                {group.group}
+              </div>
+              {visible.map((item) => {
+                const Icon = item.icon
+                return (
+                  <button key={item.id} onClick={() => onSelect(item.id)} aria-current={activeTab === item.id ? 'page' : undefined} className={itemClass(activeTab === item.id)}>
+                    <Icon className="size-4 shrink-0" />
+                    {item.label}
+                  </button>
+                )
+              })}
+            </div>
+          )
+        })}
+      </nav>
+    )
+  }
+
+  function selectFromMobileNav(tab: string) {
+    setActiveTab(tab)
+    setMobileNavOpen(false)
+  }
+
   return (
     <div className="min-h-dvh bg-background text-foreground flex flex-col font-sans">
       {/* Top Header */}
-      <header className="h-14 border-b border-border bg-panel flex items-center justify-between px-6 shrink-0 z-40">
-        <div className="flex items-center gap-6">
+      <header className="h-14 border-b border-border bg-panel flex items-center justify-between px-4 sm:px-6 shrink-0 z-40">
+        <div className="flex items-center gap-3 sm:gap-6 min-w-0">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="md:hidden"
+            aria-label="Abrir navegación"
+            aria-expanded={mobileNavOpen}
+            onClick={() => setMobileNavOpen(true)}
+          >
+            <Menu aria-hidden="true" />
+          </Button>
           <a href="/app" className="font-extrabold text-lg tracking-wider text-primary">
             FORZE
           </a>
 
           {/* Org Selector Switcher */}
-          <div className="flex items-center gap-1">
-            <span className="text-xs text-muted-foreground font-semibold">Empresa:</span>
+          <div className="flex items-center gap-1 min-w-0">
+            <span className="hidden sm:inline text-xs text-muted-foreground font-semibold">Empresa:</span>
             <select
               className="h-8 rounded bg-background border border-border px-2 text-xs font-semibold focus-visible:outline-hidden"
               value={activeOrgId}
@@ -403,49 +457,15 @@ export function AppPage() {
 
       {/* Main Layout Body */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Sidebar Navigation */}
-        <aside className="w-60 border-r border-border bg-panel flex flex-col p-4 shrink-0 overflow-y-auto">
-          <nav className="space-y-1" aria-label="Navegación principal">
-            {/* Inicio is available to any member of the active organization. */}
-            <button
-              onClick={() => setActiveTab('home')}
-              aria-current={activeTab === 'home' ? 'page' : undefined}
-              className={`flex w-full items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
-                activeTab === 'home' ? 'bg-primary text-primary-foreground shadow-xs' : 'text-muted-foreground hover:bg-accent/40'
-              }`}
-            >
-              <Home className="size-4 shrink-0" />
-              Inicio
-            </button>
-            {NAV_GROUPS.map((group) => {
-              const visible = group.items.filter((item) => permissions.includes(item.permission))
-              if (visible.length === 0) return null
-              return (
-                <div key={group.group}>
-                  <div className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider px-3 pt-6 first:pt-0 mb-2">
-                    {group.group}
-                  </div>
-                  {visible.map((item) => {
-                    const Icon = item.icon
-                    return (
-                      <button
-                        key={item.id}
-                        onClick={() => setActiveTab(item.id)}
-                        aria-current={activeTab === item.id ? 'page' : undefined}
-                        className={`flex w-full items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
-                          activeTab === item.id ? 'bg-primary text-primary-foreground shadow-xs' : 'text-muted-foreground hover:bg-accent/40'
-                        }`}
-                      >
-                        <Icon className="size-4 shrink-0" />
-                        {item.label}
-                      </button>
-                    )
-                  })}
-                </div>
-              )
-            })}
-          </nav>
+        {/* Sidebar Navigation (desktop/tablet). Hidden on mobile -> drawer. */}
+        <aside className="hidden w-60 shrink-0 overflow-y-auto border-r border-border bg-panel p-4 md:flex md:flex-col">
+          {renderNav(setActiveTab)}
         </aside>
+
+        {/* Mobile navigation drawer */}
+        <Drawer open={mobileNavOpen} onClose={() => setMobileNavOpen(false)} title="Navegación" side="left">
+          {renderNav(selectFromMobileNav)}
+        </Drawer>
 
         {/* Dynamic Content Surface */}
         <main className="flex-1 overflow-y-auto bg-background p-6">

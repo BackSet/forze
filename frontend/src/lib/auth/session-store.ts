@@ -1,10 +1,9 @@
 import { create } from 'zustand'
 
 import type { components } from '@/lib/api/generated/schema'
+import { applyThemePreference, readStoredTheme, type ThemePreference } from '@/lib/theme'
 
 export type SessionUser = components['schemas']['MeResponse']
-
-type ThemePreference = 'light' | 'dark' | 'system'
 
 type SessionState = {
   accessToken: string | null
@@ -31,7 +30,7 @@ export const useSessionStore = create<SessionState>((set) => ({
   role: null,
   permissions: [],
   refreshing: false,
-  theme: 'system',
+  theme: readStoredTheme(),
   setAccessToken: (accessToken) => set({ accessToken }),
   setUser: (user) => set({ user }),
   // Changing organization invalidates the previously resolved access until refetched.
@@ -39,7 +38,11 @@ export const useSessionStore = create<SessionState>((set) => ({
     set({ activeOrganizationId, role: null, permissions: [] }),
   setAccess: (role, permissions) => set({ role, permissions }),
   setRefreshing: (refreshing) => set({ refreshing }),
-  setTheme: (theme) => set({ theme }),
+  // Persist the preference and apply it to the document immediately.
+  setTheme: (theme) => {
+    applyThemePreference(theme)
+    set({ theme })
+  },
   clearSession: () =>
     set({ accessToken: null, user: null, activeOrganizationId: null, role: null, permissions: [], refreshing: false }),
 }))
