@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { normalizeApiError } from '@/lib/api/errors'
 import { login } from '@/lib/auth/auth-api'
+import { env, DEMO_ACCOUNTS, DEMO_PASSWORD } from '@/lib/env'
 
 const loginSchema = z.object({
   username: z.string().min(1, 'Ingresa tu usuario.'),
@@ -104,6 +105,35 @@ export function LoginPage() {
                 Entrar
               </Button>
             </form>
+
+            {env.isDev ? (
+              <div className="mt-6 rounded-md border border-border bg-background p-3" aria-label="Credenciales demo locales">
+                <p className="text-xs font-semibold text-muted-foreground">
+                  Demo local (solo dev) · contraseña{' '}
+                  <code className="font-mono text-foreground">{DEMO_PASSWORD}</code>
+                </p>
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  Credenciales ficticias. Haz clic para autocompletar:
+                </p>
+                <ul className="mt-2 space-y-1">
+                  {DEMO_ACCOUNTS.map((acc) => (
+                    <li key={acc.username}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          form.setValue('username', acc.username)
+                          form.setValue('password', DEMO_PASSWORD)
+                        }}
+                        className="flex w-full items-baseline justify-between gap-2 rounded px-2 py-1 text-left text-xs hover:bg-accent/40 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
+                      >
+                        <span className="text-muted-foreground">{acc.role}</span>
+                        <code className="truncate font-mono text-foreground">{acc.username}</code>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
           </div>
         </section>
       </div>

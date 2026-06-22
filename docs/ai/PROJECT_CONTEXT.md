@@ -84,6 +84,15 @@
   credenciales. Sin `X-XSRF-TOKEN` porque CSRF está deshabilitado.
 - Bootstrap admin: `AdminBootstrapper` crea solo la cuenta global; la membresía (`ADMINISTRADOR`) se crea al
   crear una organización (`OrganizationService`). Solo perfil `dev`, idempotente, password obligatorio por entorno.
+- Datos demo (solo local/dev): `module.budgeting.demo.DemoDataSeeder` (`@Profile("dev")` + bloqueo explicito si
+  el perfil activo es `prod`; toggle `forze.demo.enabled`, on por defecto en dev). Idempotente por centinela (la
+  cuenta `admin.demo@forze.local`); reutiliza los servicios de dominio y ejecuta el calculo/viabilidad reales.
+  Carga una organización `DEMO - Constructora Andina`, 4 usuarios ficticios (`*.demo@forze.local`, password local
+  `Demo1234!`, nunca logueada), catalogos/insumos/APU/rubros, proveedor+cotizacion (con historial de precios),
+  clientes, proyectos, 2 presupuestos (uno VIABLE y aprobado/inmutable, otro con alertas), escenario, documento y
+  auditoria. Todo con prefijo `DEMO-`. Para activar: arrancar el backend en perfil `dev`.
+  El frontend muestra (solo bajo el dev server, `env.isDev`) una tarjeta guia en Inicio (`app/demo-guide.tsx`)
+  y credenciales autocompletables en el login. Guia de uso: `docs/DEMO.md`.
 
 ## Frontend
 

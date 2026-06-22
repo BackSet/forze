@@ -16,6 +16,8 @@ import { api } from '@/lib/api/client'
 import { Button } from '@/components/ui/button'
 import { useSessionStore } from '@/lib/auth/session-store'
 import type { Permission } from '@/lib/auth/permissions'
+import { env } from '@/lib/env'
+import { DemoGuide } from './demo-guide'
 
 type HomeTabProps = {
   permissions: string[]
@@ -49,6 +51,8 @@ export function HomeTab({ permissions, onNavigate, onOpenPalette }: HomeTabProps
   })
 
   const projects = projectsQuery.data ?? []
+  // Demo dataset detection (DEMO-* codes) for the dev-only guide.
+  const demoLoaded = projects.some((p) => p.code?.startsWith('DEMO-'))
   const activeProjects = projects.filter((p) => p.status === 'ACTIVO')
   // Real, derived task signal: active projects that do not have a current budget yet.
   const projectsWithoutBudget = activeProjects.filter((p) => !p.currentBudgetId)
@@ -76,6 +80,10 @@ export function HomeTab({ permissions, onNavigate, onOpenPalette }: HomeTabProps
           <kbd className="ml-1 rounded border border-border bg-background px-1.5 py-0.5 text-[10px] font-semibold">⌘K</kbd>
         </Button>
       </div>
+
+      {env.isDev && can('PROYECTOS_READ') && (
+        <DemoGuide demoLoaded={demoLoaded} loading={projectsQuery.isPending} onNavigate={onNavigate} />
+      )}
 
       {/* KPI cards — each only appears when the user can read its source. */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
