@@ -947,6 +947,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/rubros/next-code": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Suggest the next master rubro code for the active organization. */
+        get: operations["nextRubroCode"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/projects/{projectId}/budgets/next-code": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Suggest the next budget code for a project (codes are unique per project). */
+        get: operations["nextBudgetCode"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/projects/next-code": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Suggest the next project code for the active organization. */
+        get: operations["nextProjectCode"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/price-history/{insumoId}": {
         parameters: {
             query?: never;
@@ -990,6 +1041,23 @@ export interface paths {
         };
         /** Current user's role and effective permissions in the active organization. */
         get: operations["access"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/insumos/next-code": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Suggest the next insumo code for the active organization. */
+        get: operations["nextInsumoCode"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1075,6 +1143,23 @@ export interface paths {
         };
         /** List audit log entries for the active organization. */
         get: operations["listLogs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/apuses/next-code": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Suggest the next master APU code for the active organization. */
+        get: operations["nextApuCode"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1726,6 +1811,9 @@ export interface components {
             id?: string;
             code?: string;
             name?: string;
+        };
+        NextCodeResponse: {
+            code?: string;
         };
         TeamMemberDto: {
             /** Format: uuid */
@@ -4013,6 +4101,68 @@ export interface operations {
             };
         };
     };
+    nextRubroCode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["NextCodeResponse"];
+                };
+            };
+        };
+    };
+    nextBudgetCode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["NextCodeResponse"];
+                };
+            };
+        };
+    };
+    nextProjectCode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["NextCodeResponse"];
+                };
+            };
+        };
+    };
     getPriceHistory: {
         parameters: {
             query?: never;
@@ -4071,6 +4221,26 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["AccessDto"];
+                };
+            };
+        };
+    };
+    nextInsumoCode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["NextCodeResponse"];
                 };
             };
         };
@@ -4177,6 +4347,26 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["AuditLogDto"][];
+                };
+            };
+        };
+    };
+    nextApuCode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["NextCodeResponse"];
                 };
             };
         };

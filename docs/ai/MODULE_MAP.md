@@ -121,6 +121,26 @@ Implementadas todas las capas api/application por área. FKs desacopladas; integ
 ### App Shell
 
 - `src/main.tsx`, `components/providers.tsx`, `router.ts`, `routes/__root.tsx`.
+- Tema: `lib/theme.ts` (preferencia `light`/`dark`/`system`, persistida en `localStorage` `forze-theme`,
+  aplicada via `data-theme` en `:root`; `system` sigue `prefers-color-scheme`). El estado vive en el
+  session-store (`theme`/`setTheme`); `main.tsx` aplica al cargar (sin FOUC) y escucha cambios del SO.
+  `components/theme-toggle.tsx` cicla los 3 modos (icono + label accesible, no solo color).
+- Shell responsive: sidebar `hidden md:flex`; en movil la navegacion va en `components/ui/drawer.tsx`
+  (hamburguesa en el header, cierra con Esc/backdrop). El selector de proyecto se oculta en movil.
+
+### Componentes UI reutilizables (canónicos, sin segunda librería)
+
+- `components/ui/`: `button`, `input` (base), y los primitivos: `code-field` (input + "Generar" opcional
+  via `onGenerate`, backend = fuente de unicidad), `form-section`, `page-header`, `empty-state`,
+  `status-badge` (cva; significado por texto, no solo color), `quick-actions-bar`, `data-toolbar`
+  (busqueda + acciones), `confirm-action` (confirmacion explicita sin librería de dialogos), `drawer`
+  (slide-over general izquierda/derecha; la nav movil lo usa via hamburguesa `md:hidden`).
+  Reglas: foco visible (`focus-visible:ring`), `motion-reduce`, tipado estricto, tokens de tema.
+- Clientes y Proyectos (`app/clients-projects-tab.tsx`): formulario en `Drawer` por `FormSection`
+  (identificacion/cliente/planificacion/financieros/descripcion); `CodeField` con "Generar" que llama
+  `GET /api/projects/next-code` via el cliente tipado (`queryClient.fetchQuery`) y pide confirmacion antes de
+  sobrescribir un codigo manual; alta rapida de cliente desde el formulario; archivar con `ConfirmAction`;
+  error de codigo duplicado visible en el campo. Sin `document.getElementById` (selects controlados).
 
 ### Rutas
 
