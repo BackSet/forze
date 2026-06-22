@@ -114,6 +114,9 @@ public class CatalogService {
 
 	@Transactional
 	public ApuMaestro createApu(UUID orgId, CreateApuCmd cmd) {
+		if (apuRepository.existsByOrganizationIdAndCode(orgId, cmd.code())) {
+			throw new ApiException(HttpStatus.BAD_REQUEST, "Ya existe un APU con ese codigo.");
+		}
 		UUID id = UUID.randomUUID();
 		ApuMaestro apu = new ApuMaestro(id, orgId, cmd.code(), cmd.name(), cmd.unitId(), 1);
 		apu.updateEstimate(cmd.yield(), BigDecimal.ZERO, "USD", cmd.validUntil());

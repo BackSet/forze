@@ -9,4 +9,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface BudgetRepository extends JpaRepository<Budget, UUID> {
 
 	List<Budget> findByProjectId(UUID projectId);
+
+	boolean existsByProjectIdAndCode(UUID projectId, String code);
 }

@@ -9,4 +9,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface ApuMaestroRepository extends JpaRepository<ApuMaestro, UUID> {
 
 	List<ApuMaestro> findByOrganizationId(UUID organizationId);
+
+	boolean existsByOrganizationIdAndCode(UUID organizationId, String code);
 }

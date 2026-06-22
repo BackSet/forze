@@ -3,6 +3,7 @@ package com.backset.forze.shared.api;
 import java.net.URI;
 import java.util.List;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.security.access.AccessDeniedException;
@@ -29,6 +30,17 @@ class ApiExceptionHandler {
 		ProblemDetail problem = ProblemDetail.forStatusAndDetail(exception.status(), exception.getMessage());
 		problem.setTitle(exception.status() == HttpStatus.CONFLICT ? "Conflict" : "Authentication failed");
 		problem.setType(URI.create("https://forze.local/problems/authentication"));
+		return problem;
+	}
+
+	// Backstop for unique-constraint races (e.g. two clients saving the same
+	// suggested code concurrently): surface a clear conflict instead of a 500.
+	@ExceptionHandler(DataIntegrityViolationException.class)
+	ProblemDetail handleDataIntegrity(DataIntegrityViolationException exception) {
+		ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT,
+				"El registro infringe una restriccion de unicidad (por ejemplo, un codigo duplicado).");
+		problem.setTitle("Conflict");
+		problem.setType(URI.create("https://forze.local/problems/conflict"));
 		return problem;
 	}
 

@@ -97,6 +97,9 @@ public class BudgetService {
 
 	@Transactional
 	public Budget createBudget(UUID orgId, UUID projectId, CreateBudgetCmd cmd) {
+		if (budgetRepository.existsByProjectIdAndCode(projectId, cmd.code())) {
+			throw new ApiException(HttpStatus.BAD_REQUEST, "Ya existe un presupuesto con ese codigo en el proyecto.");
+		}
 		UUID budgetId = UUID.randomUUID();
 		Budget budget = new Budget(budgetId, orgId, projectId, cmd.code(), cmd.name(), cmd.currencyCode());
 		Budget saved = budgetRepository.save(budget);

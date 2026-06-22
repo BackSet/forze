@@ -108,6 +108,21 @@
   - Administración: `ADMINISTRACION_READ, ADMINISTRACION_WRITE`.
   - Auditoría: `AUDITORIA_READ`.
 
+## Formatos de código (generación backend)
+
+`CodeGenerationService` sugiere el siguiente código por entidad (no lo reserva; la unicidad final la
+garantizan las restricciones únicas al guardar). NAMING.md no definía formato previo, así que se adopta:
+
+- Proyecto: `PRY-AAAA-0001` (único por organización; `uq_budgeting_projects_org_code`).
+- Presupuesto: `PRE-AAAA-0001` (único **por proyecto**; `uq_budgeting_budgets_project_code`).
+- Insumo: `INS-0001` · APU: `APU-0001` · Rubro: `RUB-0001` (únicos por organización).
+
+Endpoints (permiso de escritura de la entidad; 403 sin permiso): `GET /api/projects/next-code`
+(`PROYECTOS_WRITE`), `GET /api/projects/{projectId}/budgets/next-code` (`BUDGETS_WRITE`, igual que crear
+presupuesto), `GET /api/insumos|apuses|rubros/next-code` (`CATALOGOS_WRITE`). El generador ignora códigos
+que no calzan con su patrón (manuales o demo). Un código manual duplicado devuelve error claro (`400`); una
+colisión concurrente al guardar devuelve `409` (handler de `DataIntegrityViolationException`).
+
 ## Evitar
 
 - Paquete historico `com.forze.backend`.
